@@ -1,0 +1,19 @@
+<!doctype html>
+<html>
+    <head>
+      {% if title %}
+      <title>{{ title }} - ProtonChat</title>
+      {% else %}
+      <title>Welcome to ProtonChat</title>
+      {% endif %}
+    </head>
+    <body>
+        <div>ProtonChat: <a href="/">Home</a></div>
+        <div>
+          <a href="{{ url_for('auth.login') }}">Login</a>
+          <a href="{{ url_for('auth.register') }}">Register</a>
+        </div>
+        <hr>
+        {% block content %}{% endblock %}
+    </body>
+</html>
