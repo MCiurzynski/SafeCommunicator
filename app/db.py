@@ -1,17 +1,22 @@
 from flask import current_app
 from flask_sqlalchemy import SQLAlchemy
+import flask_login
 import sqlalchemy as sa
 import sqlalchemy.orm as so
 from typing import List, Optional
 import click
 from passlib.hash import argon2
+from flask_login import LoginManager, UserMixin
+from datetime import datetime, timezone
 
 class Base(so.DeclarativeBase):
     pass
 
+
+login = LoginManager()
 db = SQLAlchemy(model_class=Base)
 
-class User(Base):
+class User(Base, UserMixin):
     __tablename__ = 'user'
 
     id: so.Mapped[int] = so.mapped_column(primary_key=True, autoincrement=True)
@@ -21,8 +26,60 @@ class User(Base):
     public_key: so.Mapped[str] = so.mapped_column(sa.Text, nullable=False)
     encrypted_private_key: so.Mapped[str] = so.mapped_column(sa.Text, nullable=False)
 
+    def set_password(self, password):
+        self.password_hash = argon2.hash(password)
+
     def check_password(self, password):
         return argon2.verify(password, self.password_hash)
+    
+    sent_messages: so.Mapped[List["Message"]] = so.relationship(
+        foreign_keys="[Message.sender_id]", back_populates="sender"
+    )
+    
+    received_messages: so.Mapped[List["Message"]] = so.relationship(
+        foreign_keys="[Message.recipient_id]", back_populates="recipient"
+    )
+
+class Message(Base):
+    __tablename__ = 'message'
+
+    id: so.Mapped[int] = so.mapped_column(primary_key=True, autoincrement=True)
+
+    sender_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey('user.id'), nullable=False)
+    recipient_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey('user.id'), nullable=False)
+
+    encrypted_subject: so.Mapped[str] = so.mapped_column(sa.Text, nullable=False)
+
+    encrypted_content: so.Mapped[str] = so.mapped_column(sa.Text, nullable=False)
+
+    encrypted_aes_key: so.Mapped[str] = so.mapped_column(sa.Text, nullable=False)
+
+    signature: so.Mapped[str] = so.mapped_column(sa.Text, nullable=False)
+
+    created_at: so.Mapped[datetime] = so.mapped_column(
+        default=lambda: datetime.now(timezone.utc)
+    )
+    is_read: so.Mapped[bool] = so.mapped_column(default=False)
+    sender: so.Mapped["User"] = so.relationship(foreign_keys=[sender_id])
+    recipient: so.Mapped["User"] = so.relationship(foreign_keys=[recipient_id])
+    
+    attachments: so.Mapped[List["Attachment"]] = so.relationship(
+        back_populates="message", cascade="all, delete-orphan"
+    )
+
+class Attachment(Base):
+    __tablename__ = 'attachment'
+
+    id: so.Mapped[int] = so.mapped_column(primary_key=True, autoincrement=True)
+    message_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey('message.id'), nullable=False)
+
+    filename: so.Mapped[str] = so.mapped_column(sa.String(255), nullable=False)
+    mime_type: so.Mapped[str] = so.mapped_column(sa.String(128), nullable=False)
+    file_size: so.Mapped[int] = so.mapped_column(sa.Integer, nullable=False)
+
+    encrypted_data: so.Mapped[bytes] = so.mapped_column(sa.LargeBinary, nullable=False)
+
+    message: so.Mapped["Message"] = so.relationship(back_populates="attachments")
 
 def init_db():
     with current_app.app_context():
@@ -38,3 +95,10 @@ def init_db_command():
 def init_app(app):
     db.init_app(app)
     app.cli.add_command(init_db_command)
+    login.init_app(app)
+    login.login_view = 'auth.login'
+    login.login_message = "Zaloguj się, aby uzyskać dostęp."
+
+@login.user_loader
+def load_user(user_id):
+    return db.session.get(User, int(user_id))
