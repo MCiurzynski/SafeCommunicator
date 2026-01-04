@@ -12,7 +12,6 @@ from datetime import datetime, timezone
 class Base(so.DeclarativeBase):
     pass
 
-
 login = LoginManager()
 db = SQLAlchemy(model_class=Base)
 
@@ -22,37 +21,62 @@ class User(Base, UserMixin):
     id: so.Mapped[int] = so.mapped_column(primary_key=True, autoincrement=True)
     username: so.Mapped[str] = so.mapped_column(sa.String(64), unique=True, nullable=False)
     email: so.Mapped[str] = so.mapped_column(sa.String(120), unique=True, nullable=False)
+    
     password_hash: so.Mapped[str] = so.mapped_column(sa.String(256))
-    public_key: so.Mapped[str] = so.mapped_column(sa.Text, nullable=False)
-    encrypted_private_key: so.Mapped[str] = so.mapped_column(sa.Text, nullable=False)
 
-    def set_password(self, password):
-        self.password_hash = argon2.hash(password)
+    totp_secret: so.Mapped[Optional[str]] = so.mapped_column(sa.String(32), nullable=True)
+    
+    public_key: so.Mapped[str] = so.mapped_column(sa.Text, nullable=False) 
+    encrypted_private_key: so.Mapped[str] = so.mapped_column(sa.Text, nullable=False) 
+    private_key_iv: so.Mapped[str] = so.mapped_column(sa.Text, nullable=False)
 
-    def check_password(self, password):
-        return argon2.verify(password, self.password_hash)
+    signing_public_key: so.Mapped[str] = so.mapped_column(sa.Text, nullable=False) 
+    encrypted_signing_private_key: so.Mapped[str] = so.mapped_column(sa.Text, nullable=False)
+    signing_private_key_iv: so.Mapped[str] = so.mapped_column(sa.Text, nullable=False)
+
+    def set_password(self, password_verifier):
+        self.password_hash = argon2.hash(password_verifier)
+
+    def check_password(self, password_verifier):
+        return argon2.verify(password_verifier, self.password_hash)
     
     sent_messages: so.Mapped[List["Message"]] = so.relationship(
-        foreign_keys="[Message.sender_id]", back_populates="sender"
+        foreign_keys="Message.sender_id", back_populates="sender"
     )
     
     received_messages: so.Mapped[List["Message"]] = so.relationship(
-        foreign_keys="[Message.recipient_id]", back_populates="recipient"
+        foreign_keys="Message.recipient_id", back_populates="recipient"
     )
+
+    reset_password: so.Mapped[List['ResetPassword']] = so.relationship(
+        foreign_keys='ResetPassword.user_id', back_populates='user'
+    )
+
+class ResetPassword(Base):
+    __tablename__ = 'reset_password'
+
+    id: so.Mapped[int] = so.mapped_column(primary_key=True, autoincrement=True)
+    user_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey('user.id'), nullable=False)
+    token_hash: so.Mapped[str] = so.mapped_column(sa.Text, nullable=False)
+    expires_at: so.Mapped[datetime] = so.mapped_column(
+        default=lambda: datetime.now(timezone.utc)
+    )
+    used: so.Mapped[bool] = so.mapped_column(default=False)
+
+    user: so.Mapped['User'] = so.relationship(foreign_keys=[user_id], back_populates='reset_password')
 
 class Message(Base):
     __tablename__ = 'message'
 
     id: so.Mapped[int] = so.mapped_column(primary_key=True, autoincrement=True)
-
     sender_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey('user.id'), nullable=False)
     recipient_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey('user.id'), nullable=False)
 
     encrypted_subject: so.Mapped[str] = so.mapped_column(sa.Text, nullable=False)
-
     encrypted_content: so.Mapped[str] = so.mapped_column(sa.Text, nullable=False)
+    iv: so.Mapped[str] = so.mapped_column(sa.Text, nullable=False)
 
-    encrypted_aes_key: so.Mapped[str] = so.mapped_column(sa.Text, nullable=False)
+    ephemeral_public_key: so.Mapped[str] = so.mapped_column(sa.Text, nullable=False)
 
     signature: so.Mapped[str] = so.mapped_column(sa.Text, nullable=False)
 
@@ -60,8 +84,9 @@ class Message(Base):
         default=lambda: datetime.now(timezone.utc)
     )
     is_read: so.Mapped[bool] = so.mapped_column(default=False)
-    sender: so.Mapped["User"] = so.relationship(foreign_keys=[sender_id])
-    recipient: so.Mapped["User"] = so.relationship(foreign_keys=[recipient_id])
+    
+    sender: so.Mapped["User"] = so.relationship(foreign_keys=[sender_id], back_populates="sent_messages")
+    recipient: so.Mapped["User"] = so.relationship(foreign_keys=[recipient_id], back_populates="received_messages")
     
     attachments: so.Mapped[List["Attachment"]] = so.relationship(
         back_populates="message", cascade="all, delete-orphan"
@@ -78,6 +103,7 @@ class Attachment(Base):
     file_size: so.Mapped[int] = so.mapped_column(sa.Integer, nullable=False)
 
     encrypted_data: so.Mapped[bytes] = so.mapped_column(sa.LargeBinary, nullable=False)
+    iv: so.Mapped[str] = so.mapped_column(sa.Text, nullable=False)
 
     message: so.Mapped["Message"] = so.relationship(back_populates="attachments")
 

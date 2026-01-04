@@ -1,31 +1,107 @@
 {% extends "base.html" %}
 
 {% block content %}
-<h1>Send Message</h1>
-    <form action="" method="post" novalidate>
-        {{ form.hidden_tag() }}
-        <p>
-            {{ form.recipient.label }}<br>
-            {{ form.recipient(size=32) }}
-            {% for error in form.recipient.errors %}
-                <span style="color: red;">{{ error }}</span>
-            {% endfor %}
-        </p>
-        <p>
-            {{ form.subject.label }}<br>
-            {{ form.subject(size=64) }}
-        </p>
-        <p>
-            {{ form.content.label }}<br>
-            {{ form.content(rows=10, cols=50) }}
-        </p>
-        <p>
-            {{ form.files.label }}<br>
-            {{ form.files(multiple=True) }}
-            {% for error in form.files.errors %}
-                <span style="color: red;">{{ error }}</span>
-            {% endfor %}
-        </p>
-        <p>{{ form.submit() }}</p>
-    </form>
+<h2>Send Message</h2>
+
+<div id="key-error" style="display: none;">
+    <strong>Attention:</strong> The private key is not loaded.
+    <a href="{{ url_for('auth.logout') }}">Log out</a> and log in again.
+</div>
+
+<form id="sendForm" method="post" enctype="multipart/form-data">
+    {{ form.hidden_tag() }}
+
+    <div>
+        {{ form.recipient.label(class="form-label") }}
+            <br>
+        {{ form.recipient(id="recipient", class="form-control", autocomplete="off") }}
+    </div>
+
+    <div style="margin-bottom: 15px;">
+            <label for="subject" class="form-label">Subject</label>
+            <br>
+            <input type="text" id="subject" class="form-control">
+        </div>
+
+    <div style="margin-bottom: 15px;">
+        <label for="content" class="form-label">Content</label>
+            <br>
+        <textarea id="content" rows="10" cols="100"></textarea>
+    </div>
+    {{ form.subject_encrypted(id='subject_encrypted') }}
+    {{ form.content_encrypted(id='content_encrypted') }}
+    {{ form.iv(id="iv") }}
+    
+    {{ form.ephemeral_public_key(id="ephemeral_public_key") }}
+    
+    {{ form.signature(id="signature") }}
+
+    <div style="margin-top: 20px;">
+        <button type="submit" id="submitBtn">Send Message</button>
+    </div>
+    <div id="status"></div>
+</form>
+
+<script>
+    document.addEventListener("DOMContentLoaded", () => {
+        if (!sessionStorage.getItem("dec_enc_key") || !sessionStorage.getItem("dec_sign_key")) {
+            document.getElementById("sendForm").style.display = "none";
+            document.getElementById("key-error").style.display = "block";
+        }
+    });
+
+    document.getElementById('sendForm').addEventListener('submit', async function(e) {
+        e.preventDefault(); // ZATRZYMUJEMY standardowe wysyłanie
+        
+        const status = document.getElementById('status');
+        const btn = document.getElementById('submitBtn');
+        const form = e.target;
+        
+        try {
+            const recipient = document.getElementById('recipient').value;
+            const subject = document.getElementById('subject').value;
+            const content = document.getElementById('content').value;
+            // GET PRIVATE KEY SIGN
+            const privSignKeyJwk = sessionStorage.getItem('dec_sign_key');
+            if (!privSignKeyJwk) throw new Error('Signing key is not loaded');
+
+            // GET PUBLIC KEY
+            const safeRecipient = encodeURIComponent(recipient);
+            const response = await fetch(`/api/get_public_key/${safeRecipient}`);
+            if (!response.ok) throw new Error('Recipient check failed');
+            const data = await response.json()
+            if (data.error) throw new Error('Recipient not found');
+            // GENERATE AES KEY
+            const encKeyPair = await window.crypto.subtle.generateKey(
+                { name: "X25519" },
+                true, ["deriveKey"]
+            );
+            const reciPubKey = await window.crypto.subtle.importKey('spki', base64ToArrayBuffer(data.public_key), {name : 'X25519'}, false, []);
+            const aesKey = await window.crypto.subtle.deriveKey({name: 'X25519', public: reciPubKey}, encKeyPair.privateKey, { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]);
+            // ENCRYPT SUBJECT AND CONTENT
+            iv = await window.crypto.getRandomValues(new Uint8Array(12));
+            const enc = new TextEncoder();
+            const encSubject = await window.crypto.subtle.encrypt({ name: "AES-GCM", iv }, aesKey, enc.encode(subject));
+            const encSubject64 = arrayBufferToBase64(encSubject);
+            const encContent = await window.crypto.subtle.encrypt({ name: "AES-GCM", iv }, aesKey, enc.encode(content));
+            const encContent64 = arrayBufferToBase64(encContent);
+            const ephemeralPubExp = await window.crypto.subtle.exportKey('spki', encKeyPair.publicKey);
+            // SIGN SUBJECT AND CONTENT
+            const privSignKey = await window.crypto.subtle.importKey('jwk', JSON.parse(privSignKeyJwk), {name : 'Ed25519'}, false, ['sign']);
+            const signature = await signData(privSignKey, encSubject, encContent);
+            // FILL FORM
+            document.getElementById('subject_encrypted').value = encSubject64
+            document.getElementById('content_encrypted').value = encContent64
+            document.getElementById('iv').value = arrayBufferToBase64(iv);
+            document.getElementById('ephemeral_public_key').value = arrayBufferToBase64(ephemeralPubExp);
+            document.getElementById('signature').value = arrayBufferToBase64(signature);
+            // SEND
+            form.submit()
+        } catch (err) {
+            console.error(err);
+            status.innerText = "Error: " + err.message;
+            btn.disabled = false;
+        }
+    });
+</script>
 {% endblock %}

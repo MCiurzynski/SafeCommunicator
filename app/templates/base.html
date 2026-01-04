@@ -2,17 +2,20 @@
 <html>
     <head>
       {% if title %}
-      <title>{{ title }} - ProtonChat</title>
+      <title>{{ title }} - SecureChat</title>
       {% else %}
-      <title>Welcome to ProtonChat</title>
+      <title>Welcome to SecureChat</title>
       {% endif %}
     </head>
     <body>
-        <div>ProtonChat: <a href="/">Home</a></div>
+        <div>SecureChat: <a href="/">Home</a></div>
         {% if current_user.is_authenticated %}
         <div>
           Hello {{ current_user.username }}
-          <a href="{{ url_for('auth.logout') }}">Logout</a>
+          <a href="#" onclick="logoutUser()">Logout</a>
+        </div>
+        <div>
+          <a href="{{ url_for('auth.setup_2fa') }}">2FA</a>
         </div>
         {% else %}
         <div>
@@ -22,5 +25,16 @@
         {% endif %}
         <hr>
         {% block content %}{% endblock %}
+
+        <script src="{{ url_for('static', filename='js/utils.js') }}"></script>
+        <script src="https://cdn.jsdelivr.net/npm/argon2-browser@1.18.0/dist/argon2-bundled.min.js"></script>
     </body>
+    <script>
+      function logoutUser() {
+        sessionStorage.removeItem("decrypted_private_key");
+        sessionStorage.clear();
+        
+        window.location.href = "{{ url_for('auth.logout') }}";
+      }
+    </script>
 </html>

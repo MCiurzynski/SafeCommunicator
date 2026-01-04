@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div>
+    <div>
+        <h3>2FA config</h3>
+        
+        <p>Scan qr code in authenticator app. Without this you will not be able to log in:</p>
+        
+        <div>
+            <img src="data:image/png;base64,{{ qr_code }}" alt="Kod QR 2FA" style="width: 250px; height: 250px;">
+        </div>
+
+        <p class="text-muted">
+            If you can not scan code, enter code below:<br>
+            <strong style="letter-spacing: 2px; font-family: monospace;">{{ secret }}</strong>
+        </p>
+
+        <a href="{{ url_for('main.index') }}">Done</a>
+        <br>
+        <a href="{{ url_for('auth.regenerate_2fa') }}">Regenerate 2FA</a>
+    </div>
+</div>
+{% endblock %}

@@ -1,55 +1,71 @@
 from flask_wtf import FlaskForm
-from wtforms import StringField, PasswordField, BooleanField, SubmitField, EmailField, TextAreaField, MultipleFileField
-from wtforms.validators import DataRequired, Email, Length, ValidationError, EqualTo
-from flask_wtf.file import FileAllowed
+from wtforms import StringField, PasswordField, BooleanField, SubmitField, HiddenField, MultipleFileField, TextAreaField
+from wtforms.validators import DataRequired, Email, EqualTo, Length, ValidationError, Regexp
 from app.db import db, User
 
 class LoginForm(FlaskForm):
-    username = StringField('Username', validators=[DataRequired()])
-    password = PasswordField('Password', validators=[DataRequired()])
-    remember_me = BooleanField('Remember Me')
+    username = StringField('Login', validators=[DataRequired()])
+    password_verifier = HiddenField('PasswordVerifier', validators=[DataRequired()])
+    
+    totp_code = StringField('2FA Code', validators=[
+        DataRequired(), Length(min=6, max=7, message="Code contains only 6 digits")
+    ])
+    
     submit = SubmitField('Login')
 
+
 class RegisterForm(FlaskForm):
-    username = StringField('Username', validators=[DataRequired(), Length(min=4, max=128, message='Length of username has to be between 4 and 128')])
-    email = EmailField('Email', validators=[DataRequired(), Email()])
-    password_first = PasswordField('Password', validators=[DataRequired(), Length(min=8, max=256, message='Length of password has to be between 8 and 256')])
-    password_second = PasswordField('Repeat password', validators=[DataRequired(), EqualTo('password_first')])
+    username = StringField('Login', validators=[
+        DataRequired(), 
+        Length(min=3, max=64),
+        Regexp(r'^[a-zA-Z0-9_-]+$', message="Login can contain only letters, digits, _ and -")
+    ])
+    email = StringField('Email', validators=[DataRequired(), Email()])
+    
+    website = StringField('Website')
+
+    password_verifier = HiddenField('PasswordVerifier', validators=[DataRequired()])
+
+    public_key = HiddenField('PublicKey', validators=[DataRequired()])
+    encrypted_private_key = HiddenField('EncPrivateKey', validators=[DataRequired()])
+    private_key_iv = HiddenField('PrivateKeyIV', validators=[DataRequired()])
+
+    signing_public_key = HiddenField('SigningPublicKey', validators=[DataRequired()])
+    encrypted_signing_private_key = HiddenField('EncSigningPrivateKey', validators=[DataRequired()])
+    signing_private_key_iv = HiddenField('SigningPrivateKeyIV', validators=[DataRequired()])
+
     submit = SubmitField('Register')
 
     def validate_username(self, username):
-        user = db.session.execute(db.select(User).where(User.username == username.data)).scalar()
-        if user:
-            raise ValidationError('This username is used')
+        user = db.session.scalar(db.select(User).where(User.username == username.data))
+        if user is not None:
+            raise ValidationError('Login jest zajęty.')
 
     def validate_email(self, email):
-        user = db.session.execute(db.select(User).where(User.email == email.data)).scalar()
-        if user:
-            raise ValidationError('This email is used')
+        user = db.session.scalar(db.select(User).where(User.email == email.data))
+        if user is not None:
+            raise ValidationError('Email jest zajęty.')
+
 
 class SendMessageForm(FlaskForm):
-    recipient = StringField('Recipient', validators=[
-        DataRequired(message="Recipient is required")
-    ])
-    subject = StringField('Subject', validators=[
-        DataRequired(),
-        Length(max=128, message="Subject can be max 128 characters")
-    ])
-
-    content = TextAreaField('Content', validators=[
-        DataRequired(message="Content is required")
-    ])
-
-    files = MultipleFileField('Files', validators=[
-        FileAllowed(['jpg', 'png', 'pdf', 'txt', 'docx', 'zip'], 'File type not allowed!')
-    ])
+    recipient = StringField('Recipient', validators=[DataRequired()])
+    subject_encrypted = HiddenField('Subject', validators=[DataRequired()])
+    content_encrypted = HiddenField('Content', validators=[DataRequired()])
+    
+    iv = HiddenField('IV', validators=[DataRequired()])
+    
+    ephemeral_public_key = HiddenField('EphemeralPublicKey', validators=[DataRequired()])
+    
+    signature = HiddenField('Signature', validators=[DataRequired()])
 
     submit = SubmitField('Send')
 
-    def validate_recipient(self, recipient):
-        user = db.session.execute(
-            db.select(User).filter_by(username=recipient.data)
-        ).scalar_one_or_none()
-        
-        if user is None:
-            raise ValidationError('Chosen recipient does not exists.')
+class ResetPasswordForm(FlaskForm):
+    username = StringField('Username', validators=[DataRequired()])
+
+    submit = SubmitField('Send')
+
+class ChangePasswordForm(FlaskForm):
+    password_verifier = HiddenField('PasswordVerifier', validators=[DataRequired()])
+
+    submit = SubmitField('Send')

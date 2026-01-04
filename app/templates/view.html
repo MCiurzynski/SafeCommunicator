@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div>
+    <div>
+        <h2>Message</h2>
+        <div>
+            <a href="{{ url_for('main.index') }}">Wróć</a>
+            
+            <form action="{{ url_for('main.delete_message', message_id=msg.id) }}" method="POST" style="display:inline;" onsubmit="return confirm('Do you want to delete this message permanently?');">
+                <button type="submit">Delete</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="error_panel" style="display: none;">
+        <strong>Error:</strong> <span id="error_msg"></span>
+    </div>
+
+    <div id="message_container" style="display: none;">
+        <div>
+            <h4>Subject: <span id="subject_display"></span></h4>
+            <div>
+                <span id="sig_badge">Signature verification</span>
+            </div>
+        </div>
+        <div>
+            <div>
+                <div>
+                    <strong>From:</strong> {{ msg.sender.username }}
+                </div>
+                <div>
+                    <strong>Date:</strong> {{ msg.created_at.strftime('%Y-%m-%d %H:%M') }}
+                </div>
+            </div>
+            <hr>
+            <div id="content_display"></div>
+        </div>
+    </div>
+</div>
+
+{# DANE Z BAZY (HIDDEN) #}
+{# Klucz tymczasowy nadawcy potrzebny do odtworzenia AES #}
+<input type="hidden" id="ephemeral_key" value="{{ msg.ephemeral_public_key }}">
+<input type="hidden" id="sender" value="{{ msg.sender.username }}">
+<input type="hidden" id="iv" value="{{ msg.iv }}">
+<input type="hidden" id="encrypted_subject" value="{{ msg.encrypted_subject }}">
+<input type="hidden" id="encrypted_content" value="{{ msg.encrypted_content }}">
+<input type="hidden" id="signature" value="{{ msg.signature }}">
+
+<script>
+    async function decryptMessage() {
+        try {
+            // Get data from form
+            const encSubject = base64ToArrayBuffer(document.getElementById('encrypted_subject').value);
+            const encContent = base64ToArrayBuffer(document.getElementById('encrypted_content').value);
+            const iv = base64ToArrayBuffer(document.getElementById('iv').value);
+            const ephemeralPublicKeyStr = base64ToArrayBuffer(document.getElementById('ephemeral_key').value);
+            const signature = base64ToArrayBuffer(document.getElementById('signature').value);
+            const sender = document.getElementById('sender').value;
+
+            const privKeyStr = sessionStorage.getItem('dec_enc_key');
+            // CHECK IF ENCRYPTION KEY PRESENT
+            if (!privKeyStr) {
+                throw new Error('Private key absent. Please relog');
+            }
+            // IMPORT ENCRYPTION KEY
+            const privKey = await window.crypto.subtle.importKey('jwk', JSON.parse(privKeyStr), { name: 'X25519' }, false, ['deriveKey']);
+            // GET SENDER PUBLIC SIGN KEY
+            const response = await fetch(`/api/get_public_key/${sender}`);
+            if (!response.ok) {
+                throw new Error('Sender public sign key could not be acquired');
+            }
+            const data = await response.json()
+            if (data.error) throw new Error('Sender not found');
+            const senderVerifyKeyStr = base64ToArrayBuffer(data.signing_public_key);
+            // SIGNATURE VERIFICATION
+            const senderVerifyKey = await window.crypto.subtle.importKey('spki', senderVerifyKeyStr, { name : 'Ed25519' }, false, ['verify']);
+            const isValid = await verifySignature(senderVerifyKey, signature, encSubject, encContent);
+            let decryptMessage = true;
+            if (isValid) {
+                document.getElementById('sig_badge').innerText = 'Signature verified';
+            }
+            else {
+                document.getElementById('sig_badge').innerText = 'Signature not verified';
+                decryptMessage = confirm('Signature not verified. Someone may have changed message. Do you want to decrypt message?')
+            }
+            if (decryptMessage) {
+                // GET EPHEMERAL PUBLIC KEY
+                const ephemeralPublicKey = await window.crypto.subtle.importKey('spki', ephemeralPublicKeyStr, { name : 'X25519' }, false, []);
+                // GET AES KEY
+                const aesKey = await window.crypto.subtle.deriveKey({ name: 'X25519', public: ephemeralPublicKey}, privKey, { name: "AES-GCM", length: 256 }, false, ['decrypt']);
+                // DECRYPT
+                const subject = await window.crypto.subtle.decrypt({ name: "AES-GCM", iv }, aesKey, encSubject);
+                const content = await window.crypto.subtle.decrypt({ name: "AES-GCM", iv }, aesKey, encContent);
+
+                // SHOW
+                const dec = new TextDecoder();
+                document.getElementById('subject_display').innerText = dec.decode(subject);
+                document.getElementById('content_display').innerText = dec.decode(content);
+                document.getElementById('message_container').style.display = 'block'; // Dodaj html sanitize
+            }
+            else {
+                document.getElementById('subject_display').innerText = 'SIGNATURE NOT VERIFIED';
+                document.getElementById('content_display').innerText = 'SIGNATURE NOT VERIFIED';
+                document.getElementById('message_container').style.display = 'block';
+            }
+        } catch (err) {
+            console.error(err);
+            document.getElementById('loading_panel').style.display = 'none';
+            document.getElementById('error_panel').style.display = 'block';
+            document.getElementById('error_msg').innerText = "Error: " + err.message;
+        }
+    }
+
+
+    window.addEventListener('DOMContentLoaded', decryptMessage);
+</script>
+{% endblock %}
