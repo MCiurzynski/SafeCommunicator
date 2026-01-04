@@ -17,10 +17,8 @@
             <label for="password_raw" class="form-label">Password</label>
             <br>
             <input type="password" id="password_raw" class="form-control" autocomplete="password">
-            <br>
-            <a href="{{ url_for('auth.reset_password') }}">Reset Password</a>
         </div>
-        
+
         <div style="margin-bottom: 15px;">
             {{ form.totp_code.label }}<br>
             {{ form.totp_code(placeholder="000000", autocomplete="off") }}

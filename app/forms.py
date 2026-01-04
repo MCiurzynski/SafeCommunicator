@@ -59,13 +59,3 @@ class SendMessageForm(FlaskForm):
     signature = HiddenField('Signature', validators=[DataRequired()])
 
     submit = SubmitField('Send')
-
-class ResetPasswordForm(FlaskForm):
-    username = StringField('Username', validators=[DataRequired()])
-
-    submit = SubmitField('Send')
-
-class ChangePasswordForm(FlaskForm):
-    password_verifier = HiddenField('PasswordVerifier', validators=[DataRequired()])
-
-    submit = SubmitField('Send')

@@ -48,23 +48,6 @@ class User(Base, UserMixin):
         foreign_keys="Message.recipient_id", back_populates="recipient"
     )
 
-    reset_password: so.Mapped[List['ResetPassword']] = so.relationship(
-        foreign_keys='ResetPassword.user_id', back_populates='user'
-    )
-
-class ResetPassword(Base):
-    __tablename__ = 'reset_password'
-
-    id: so.Mapped[int] = so.mapped_column(primary_key=True, autoincrement=True)
-    user_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey('user.id'), nullable=False)
-    token_hash: so.Mapped[str] = so.mapped_column(sa.Text, nullable=False)
-    expires_at: so.Mapped[datetime] = so.mapped_column(
-        default=lambda: datetime.now(timezone.utc)
-    )
-    used: so.Mapped[bool] = so.mapped_column(default=False)
-
-    user: so.Mapped['User'] = so.relationship(foreign_keys=[user_id], back_populates='reset_password')
-
 class Message(Base):
     __tablename__ = 'message'
 
