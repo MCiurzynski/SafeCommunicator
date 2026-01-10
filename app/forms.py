@@ -1,5 +1,5 @@
 from flask_wtf import FlaskForm
-from wtforms import StringField, PasswordField, BooleanField, SubmitField, HiddenField, MultipleFileField, TextAreaField
+from wtforms import StringField, SubmitField, HiddenField, FileField
 from wtforms.validators import DataRequired, Email, EqualTo, Length, ValidationError, Regexp
 from app.db import db, User
 
@@ -52,10 +52,18 @@ class SendMessageForm(FlaskForm):
     subject_encrypted = HiddenField('Subject', validators=[DataRequired()])
     content_encrypted = HiddenField('Content', validators=[DataRequired()])
     
-    iv = HiddenField('IV', validators=[DataRequired()])
+    subject_nonce = HiddenField('SubjectNonce', validators=[DataRequired()])
+    content_nonce = HiddenField('ContentNonce', validators=[DataRequired()])
     
     ephemeral_public_key = HiddenField('EphemeralPublicKey', validators=[DataRequired()])
     
     signature = HiddenField('Signature', validators=[DataRequired()])
+
+    attachment_blob = FileField('Attachment')
+    attachment_nonce = HiddenField('AttNonce')
+    attachment_filename = HiddenField('AttFilename')
+    attachment_filename_nonce = HiddenField('AttFilenameNonce')
+    attachment_mime = HiddenField('AttMime')
+    attachment_mime_nonce = HiddenField('AttMimeNonce')
 
     submit = SubmitField('Send')

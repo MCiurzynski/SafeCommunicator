@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, redirect, url_for, flash, request, send_file, jsonify
+from flask import Blueprint, render_template, redirect, url_for, flash, request, send_file, jsonify, current_app
 from app.forms import LoginForm, RegisterForm
 from app.db import db, User
 from flask_login import current_user, login_user, logout_user, login_required
@@ -7,6 +7,7 @@ import qrcode
 import io
 from app import limiter
 import base64
+
 
 bp = Blueprint('auth', __name__, url_prefix='/')
 
@@ -32,10 +33,9 @@ def login():
         if not user.check_password(form.password_verifier.data):
             return jsonify({'success': False, 'message': error_msg}), 401
 
-        if user.totp_secret:
-            totp = pyotp.TOTP(user.totp_secret)
-            if not totp.verify(form.totp_code.data, valid_window=1):
-                return jsonify({'success': False, 'message': error_msg}), 401
+        totp = pyotp.TOTP(user.totp_secret)
+        if not totp.verify(form.totp_code.data, valid_window=1):
+            return jsonify({'success': False, 'message': error_msg}), 401
         
         login_user(user)
         
@@ -83,9 +83,9 @@ def register():
             encrypted_signing_private_key=form.encrypted_signing_private_key.data,
             signing_private_key_iv=form.signing_private_key_iv.data,
             
-            totp_secret=new_totp_secret
         )
         
+        user.totp_secret = new_totp_secret
         user.set_password(form.password_verifier.data)
 
         db.session.add(user)

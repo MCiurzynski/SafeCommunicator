@@ -13,18 +13,18 @@
         </div>
     </div>
 
-    <div id="error_panel" style="display: none;">
+    <div id="error_panel" style="display: none; color: red; margin-top: 10px;">
         <strong>Error:</strong> <span id="error_msg"></span>
     </div>
 
-    <div id="message_container" style="display: none;">
+    <div id="message_container" style="display: none; margin-top: 20px;">
         <div>
             <h4>Subject: <span id="subject_display"></span></h4>
             <div>
-                <span id="sig_badge">Signature verification</span>
+                <span id="sig_badge" style="padding: 3px 6px; border-radius: 4px; font-size: 0.9em;">Signature verification</span>
             </div>
         </div>
-        <div>
+        <div style="margin-top: 10px; padding: 10px; border: 1px solid #eee;">
             <div>
                 <div>
                     <strong>From:</strong> {{ msg.sender.username }}
@@ -34,85 +34,196 @@
                 </div>
             </div>
             <hr>
-            <div id="content_display"></div>
+            
+            {# Treść wiadomości #}
+            <div id="content_display" style="white-space: pre-wrap;"></div>
+
+            {# Sekcja załączników - widoczna dopiero po odszyfrowaniu #}
+            {% if msg.attachments %}
+            <div id="attachments_section" style="display:none; margin-top: 30px; border-top: 2px solid #ccc; padding-top: 10px;">
+                <h4>Attachments:</h4>
+                {% for att in msg.attachments %}
+                <div class="attachment-item" style="margin-bottom: 10px; padding: 5px; background-color: #f9f9f9; border: 1px solid #ddd;">
+                    <strong>File:</strong> <span style="font-family: monospace;">{{ att.filename }}</span>
+                    <button type="button" class="btn btn-sm btn-success btn-download" data-id="{{ att.id }}" style="margin-left: 10px;">
+                        Decrypt & Download
+                    </button>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
         </div>
     </div>
 </div>
 
 {# DANE Z BAZY (HIDDEN) #}
-{# Klucz tymczasowy nadawcy potrzebny do odtworzenia AES #}
 <input type="hidden" id="ephemeral_key" value="{{ msg.ephemeral_public_key }}">
 <input type="hidden" id="sender" value="{{ msg.sender.username }}">
-<input type="hidden" id="iv" value="{{ msg.iv }}">
+<input type="hidden" id="subject_nonce" value="{{ msg.subject_nonce }}">
+<input type="hidden" id="content_nonce" value="{{ msg.content_nonce }}">
 <input type="hidden" id="encrypted_subject" value="{{ msg.encrypted_subject }}">
 <input type="hidden" id="encrypted_content" value="{{ msg.encrypted_content }}">
 <input type="hidden" id="signature" value="{{ msg.signature }}">
 
 <script>
+    // Główna funkcja deszyfrująca przy ładowaniu strony
     async function decryptMessage() {
         try {
-            // Get data from form
+            // 1. Pobieranie danych z ukrytych pól formularza
             const encSubject = base64ToArrayBuffer(document.getElementById('encrypted_subject').value);
             const encContent = base64ToArrayBuffer(document.getElementById('encrypted_content').value);
-            const iv = base64ToArrayBuffer(document.getElementById('iv').value);
+            const subject_nonce = base64ToArrayBuffer(document.getElementById('subject_nonce').value);
+            const content_nonce = base64ToArrayBuffer(document.getElementById('content_nonce').value);
             const ephemeralPublicKeyStr = base64ToArrayBuffer(document.getElementById('ephemeral_key').value);
             const signature = base64ToArrayBuffer(document.getElementById('signature').value);
             const sender = document.getElementById('sender').value;
 
+            // 2. Pobranie klucza prywatnego z SessionStorage
             const privKeyStr = sessionStorage.getItem('dec_enc_key');
-            // CHECK IF ENCRYPTION KEY PRESENT
             if (!privKeyStr) {
-                throw new Error('Private key absent. Please relog');
+                throw new Error('Private key absent. Please relog.');
             }
-            // IMPORT ENCRYPTION KEY
-            const privKey = await window.crypto.subtle.importKey('jwk', JSON.parse(privKeyStr), { name: 'X25519' }, false, ['deriveKey']);
-            // GET SENDER PUBLIC SIGN KEY
+
+            // 3. Import kluczy kryptograficznych
+            const privKey = await window.crypto.subtle.importKey(
+                'jwk', JSON.parse(privKeyStr), { name: 'X25519' }, false, ['deriveKey']
+            );
+
+            // Pobranie klucza publicznego nadawcy (do weryfikacji podpisu)
             const response = await fetch(`/api/get_public_key/${sender}`);
-            if (!response.ok) {
-                throw new Error('Sender public sign key could not be acquired');
-            }
-            const data = await response.json()
+            if (!response.ok) throw new Error('Sender public sign key could not be acquired');
+            
+            const data = await response.json();
             if (data.error) throw new Error('Sender not found');
             const senderVerifyKeyStr = base64ToArrayBuffer(data.signing_public_key);
-            // SIGNATURE VERIFICATION
-            const senderVerifyKey = await window.crypto.subtle.importKey('spki', senderVerifyKeyStr, { name : 'Ed25519' }, false, ['verify']);
-            const isValid = await verifySignature(senderVerifyKey, signature, encSubject, encContent);
-            let decryptMessage = true;
-            if (isValid) {
-                document.getElementById('sig_badge').innerText = 'Signature verified';
-            }
-            else {
-                document.getElementById('sig_badge').innerText = 'Signature not verified';
-                decryptMessage = confirm('Signature not verified. Someone may have changed message. Do you want to decrypt message?')
-            }
-            if (decryptMessage) {
-                // GET EPHEMERAL PUBLIC KEY
-                const ephemeralPublicKey = await window.crypto.subtle.importKey('spki', ephemeralPublicKeyStr, { name : 'X25519' }, false, []);
-                // GET AES KEY
-                const aesKey = await window.crypto.subtle.deriveKey({ name: 'X25519', public: ephemeralPublicKey}, privKey, { name: "AES-GCM", length: 256 }, false, ['decrypt']);
-                // DECRYPT
-                const subject = await window.crypto.subtle.decrypt({ name: "AES-GCM", iv }, aesKey, encSubject);
-                const content = await window.crypto.subtle.decrypt({ name: "AES-GCM", iv }, aesKey, encContent);
+            const senderVerifyKey = await window.crypto.subtle.importKey(
+                'spki', senderVerifyKeyStr, { name : 'Ed25519' }, false, ['verify']
+            );
 
-                // SHOW
-                const dec = new TextDecoder();
-                document.getElementById('subject_display').innerText = dec.decode(subject);
-                document.getElementById('content_display').innerText = dec.decode(content);
-                document.getElementById('message_container').style.display = 'block'; // Dodaj html sanitize
+            // 4. Weryfikacja Podpisu (Signature)
+            const isValid = await verifySignature(senderVerifyKey, signature, encSubject, encContent);
+            const sigBadge = document.getElementById('sig_badge');
+            let proceedDecrypt = true;
+
+            if (isValid) {
+                sigBadge.innerText = 'Signature verified ✅';
+                sigBadge.style.backgroundColor = '#d4edda';
+                sigBadge.style.color = '#155724';
+            } else {
+                sigBadge.innerText = 'Signature INVALID ❌';
+                sigBadge.style.backgroundColor = '#f8d7da';
+                sigBadge.style.color = '#721c24';
+                proceedDecrypt = confirm('Signature not verified! Someone may have tampered with this message. Do you still want to try decrypting?');
             }
-            else {
-                document.getElementById('subject_display').innerText = 'SIGNATURE NOT VERIFIED';
-                document.getElementById('content_display').innerText = 'SIGNATURE NOT VERIFIED';
+
+            if (proceedDecrypt) {
+                // 5. Odtworzenie klucza AES (ECDH Key Derivation)
+                const ephemeralPublicKey = await window.crypto.subtle.importKey(
+                    'spki', ephemeralPublicKeyStr, { name : 'X25519' }, false, []
+                );
+
+                const aesKey = await window.crypto.subtle.deriveKey(
+                    { name: 'X25519', public: ephemeralPublicKey}, 
+                    privKey, 
+                    { name: "AES-GCM", length: 256 }, 
+                    false, ['decrypt']
+                );
+
+                // 6. Deszyfracja treści
+                const subjectBuffer = await window.crypto.subtle.decrypt({ name: "AES-GCM", iv: subject_nonce }, aesKey, encSubject);
+                const contentBuffer = await window.crypto.subtle.decrypt({ name: "AES-GCM", iv: content_nonce }, aesKey, encContent);
+
+                const dec = new TextDecoder();
+                document.getElementById('subject_display').innerText = dec.decode(subjectBuffer);
+                document.getElementById('content_display').innerText = dec.decode(contentBuffer);
+                
+                // Pokaż kontener wiadomości
+                document.getElementById('message_container').style.display = 'block';
+
+                // 7. OBSŁUGA ZAŁĄCZNIKÓW
+                // Teraz, gdy mamy aesKey, możemy aktywować przyciski pobierania
+                const attSection = document.getElementById('attachments_section');
+                if (attSection) {
+                    attSection.style.display = 'block'; // Pokaż sekcję załączników
+                    
+                    const downloadBtns = document.querySelectorAll('.btn-download');
+                    downloadBtns.forEach(btn => {
+                        // Podpinamy zdarzenie click, przekazując aesKey przez domknięcie (closure)
+                        btn.onclick = (e) => {
+                            e.preventDefault();
+                            const attId = btn.getAttribute('data-id');
+                            // Pobieramy tekst przycisku żeby pokazać "Loading..."
+                            const originalText = btn.innerText;
+                            btn.innerText = "Decrypting...";
+                            btn.disabled = true;
+
+                            downloadAttachment(attId, aesKey)
+                                .then(() => {
+                                    btn.innerText = "Downloaded";
+                                    btn.disabled = false;
+                                })
+                                .catch(err => {
+                                    console.error(err);
+                                    alert("Error downloading file: " + err.message);
+                                    btn.innerText = originalText;
+                                    btn.disabled = false;
+                                });
+                        };
+                    });
+                }
+
+            } else {
+                // Użytkownik odmówił deszyfracji przy błędnym podpisie
+                document.getElementById('subject_display').innerText = '--- BLOCKED ---';
+                document.getElementById('content_display').innerText = 'Signature verification failed. Decryption aborted.';
                 document.getElementById('message_container').style.display = 'block';
             }
+
         } catch (err) {
             console.error(err);
-            document.getElementById('loading_panel').style.display = 'none';
             document.getElementById('error_panel').style.display = 'block';
-            document.getElementById('error_msg').innerText = "Error: " + err.message;
+            document.getElementById('error_msg').innerText = err.message;
         }
     }
 
+    // Funkcja pobierająca i deszyfrująca pojedynczy załącznik
+    async function downloadAttachment(attId, aesKey) {
+        // 1. Pobierz zaszyfrowany plik z API
+        const resp = await fetch(`/api/attachment/${attId}`);
+        if (!resp.ok) throw new Error("API Error: " + resp.statusText);
+        
+        const data = await resp.json();
+        if (data.error) throw new Error(data.error);
+        
+        // 2. Konwersja Base64 -> ArrayBuffer
+        const encryptedBuffer = base64ToArrayBuffer(data.encrypted_data);
+        const iv = base64ToArrayBuffer(data.iv);
+        
+        try {
+            // 3. Odszyfruj (tym samym kluczem co wiadomość)
+            const decryptedBuffer = await window.crypto.subtle.decrypt(
+                { name: "AES-GCM", iv: iv }, 
+                aesKey, 
+                encryptedBuffer
+            );
+            
+            // 4. Stwórz Blob i wymuś pobieranie w przeglądarce
+            const blob = new Blob([decryptedBuffer], { type: data.mime_type });
+            const url = URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = data.filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+        } catch (e) {
+            console.error("Decryption error:", e);
+            throw new Error("Integrity check failed or invalid key.");
+        }
+    }
 
     window.addEventListener('DOMContentLoaded', decryptMessage);
 </script>

@@ -28,13 +28,28 @@
             <br>
         <textarea id="content" rows="10" cols="100"></textarea>
     </div>
+
+    <div style="margin-bottom: 15px;">
+        <label class="form-label">Attachment</label>
+        <input type="file" id="file_input" class="form-control" multiple>
+    </div>
+
     {{ form.subject_encrypted(id='subject_encrypted') }}
     {{ form.content_encrypted(id='content_encrypted') }}
-    {{ form.iv(id="iv") }}
+    {{ form.subject_nonce(id="subject_nonce") }}
+    {{ form.content_nonce(id="content_nonce") }}
     
     {{ form.ephemeral_public_key(id="ephemeral_public_key") }}
     
     {{ form.signature(id="signature") }}
+
+    
+    {{ form.attachment_blob(id="attachment_blob", style="display:none") }}
+    {{ form.attachment_nonce(id="attachment_nonce") }}
+    {{ form.attachment_filename(id="attachment_filename") }}
+    {{ form.attachment_filename_nonce(id="attachment_filename_nonce") }}
+    {{ form.attachment_mime(id="attachment_mime") }}
+    {{ form.attachment_mime_nonce(id="attachment_mime_nonce") }}
 
     <div style="margin-top: 20px;">
         <button type="submit" id="submitBtn">Send Message</button>
@@ -67,9 +82,9 @@
 
             // GET PUBLIC KEY
             const safeRecipient = encodeURIComponent(recipient);
-            const response = await fetch(`/api/get_public_key/${safeRecipient}`);
-            if (!response.ok) throw new Error('Recipient check failed');
-            const data = await response.json()
+            const responseRecipient = await fetch(`/api/get_public_key/${safeRecipient}`);
+            if (!responseRecipient.ok) throw new Error('Recipient check failed');
+            const data = await responseRecipient.json()
             if (data.error) throw new Error('Recipient not found');
             // GENERATE AES KEY
             const encKeyPair = await window.crypto.subtle.generateKey(
@@ -79,24 +94,71 @@
             const reciPubKey = await window.crypto.subtle.importKey('spki', base64ToArrayBuffer(data.public_key), {name : 'X25519'}, false, []);
             const aesKey = await window.crypto.subtle.deriveKey({name: 'X25519', public: reciPubKey}, encKeyPair.privateKey, { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]);
             // ENCRYPT SUBJECT AND CONTENT
-            iv = await window.crypto.getRandomValues(new Uint8Array(12));
+            const subject_nonce = await window.crypto.getRandomValues(new Uint8Array(12));
+            const content_nonce = await window.crypto.getRandomValues(new Uint8Array(12));
             const enc = new TextEncoder();
-            const encSubject = await window.crypto.subtle.encrypt({ name: "AES-GCM", iv }, aesKey, enc.encode(subject));
+            const encSubject = await window.crypto.subtle.encrypt({ name: "AES-GCM", iv: subject_nonce }, aesKey, enc.encode(subject));
             const encSubject64 = arrayBufferToBase64(encSubject);
-            const encContent = await window.crypto.subtle.encrypt({ name: "AES-GCM", iv }, aesKey, enc.encode(content));
+            console.log(1);
+            const encContent = await window.crypto.subtle.encrypt({ name: "AES-GCM", iv: content_nonce }, aesKey, enc.encode(content));
             const encContent64 = arrayBufferToBase64(encContent);
             const ephemeralPubExp = await window.crypto.subtle.exportKey('spki', encKeyPair.publicKey);
             // SIGN SUBJECT AND CONTENT
             const privSignKey = await window.crypto.subtle.importKey('jwk', JSON.parse(privSignKeyJwk), {name : 'Ed25519'}, false, ['sign']);
             const signature = await signData(privSignKey, encSubject, encContent);
             // FILL FORM
-            document.getElementById('subject_encrypted').value = encSubject64
-            document.getElementById('content_encrypted').value = encContent64
-            document.getElementById('iv').value = arrayBufferToBase64(iv);
+            document.getElementById('subject_encrypted').value = encSubject64;
+            document.getElementById('content_encrypted').value = encContent64;
+            document.getElementById('subject_nonce').value = arrayBufferToBase64(subject_nonce);
+            document.getElementById('content_nonce').value = arrayBufferToBase64(content_nonce);
             document.getElementById('ephemeral_public_key').value = arrayBufferToBase64(ephemeralPubExp);
             document.getElementById('signature').value = arrayBufferToBase64(signature);
-            // SEND
-            form.submit()
+
+            // 1. Obsługa pliku (jeśli istnieje)
+// const fileInput = document.getElementById('file_input');
+// let encryptedFileBlob = null;
+// let fileIvBase64 = "";
+
+// if (fileInput.files.length > 0) {
+//     const file = fileInput.files[0];
+//     const fileBuffer = await file.arrayBuffer();
+
+//     // Generujemy osobne IV dla pliku
+//     const fileIv = window.crypto.getRandomValues(new Uint8Array(12));
+    
+//     // Szyfrujemy plik TYM SAMYM kluczem AES co wiadomość (aesKey z Twojego kodu)
+//     const encryptedFileBuffer = await window.crypto.subtle.encrypt(
+//         { name: "AES-GCM", iv: fileIv }, 
+//         aesKey, 
+//         fileBuffer
+//     );
+
+//     // Tworzymy Blob z zaszyfrowanych danych
+//     encryptedFileBlob = new Blob([encryptedFileBuffer], { type: "application/octet-stream" });
+    
+//     // Zapisujemy metadane do ukrytych pól
+//     document.getElementById('attachment_filename').value = file.name;
+//     document.getElementById('attachment_mime').value = file.type;
+//     document.getElementById('attachment_iv').value = arrayBufferToBase64(fileIv);
+//     fileIvBase64 = arrayBufferToBase64(fileIv);
+// }
+            const formData = new FormData(form);
+// // Nadpisujemy pole pliku naszym zaszyfrowanym blobem
+// if (encryptedFileBlob) {
+//     formData.set('attachment_blob', encryptedFileBlob, 'encrypted.bin');
+// }
+
+// Wysyłamy ręcznie fetchem (zamiast form.submit(), bo modyfikujemy plik)
+const response = await fetch(form.action, {
+    method: 'POST',
+    body: formData
+});
+
+if (response.ok) {
+    window.location.href = "{{ url_for('main.index') }}";
+} else {
+    throw new Error("Sending failed");
+}
         } catch (err) {
             console.error(err);
             status.innerText = "Error: " + err.message;

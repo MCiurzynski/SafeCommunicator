@@ -1,6 +1,5 @@
 from flask import current_app
 from flask_sqlalchemy import SQLAlchemy
-import flask_login
 import sqlalchemy as sa
 import sqlalchemy.orm as so
 from typing import List, Optional
@@ -8,11 +7,12 @@ import click
 from passlib.hash import argon2
 from flask_login import LoginManager, UserMixin
 from datetime import datetime, timezone
+from utils import encrypt_totp_secret, decrypt_totp_secret
 
 class Base(so.DeclarativeBase):
     pass
 
-login = LoginManager()
+from app import login_manager as login
 db = SQLAlchemy(model_class=Base)
 
 class User(Base, UserMixin):
@@ -24,7 +24,7 @@ class User(Base, UserMixin):
     
     password_hash: so.Mapped[str] = so.mapped_column(sa.String(256))
 
-    totp_secret: so.Mapped[Optional[str]] = so.mapped_column(sa.String(32), nullable=True)
+    encrypted_totp_secret: so.Mapped[Optional[str]] = so.mapped_column(sa.String(32), nullable=False)
     
     public_key: so.Mapped[str] = so.mapped_column(sa.Text, nullable=False) 
     encrypted_private_key: so.Mapped[str] = so.mapped_column(sa.Text, nullable=False) 
@@ -39,6 +39,14 @@ class User(Base, UserMixin):
 
     def check_password(self, password_verifier):
         return argon2.verify(password_verifier, self.password_hash)
+    
+    @property
+    def totp_secret(self):
+        return decrypt_totp_secret(self.encrypted_totp_secret)
+    
+    @totp_secret.setter
+    def totp_secret(self, totp_secret):
+        self.encrypted_totp_secret = encrypt_totp_secret(totp_secret)
     
     sent_messages: so.Mapped[List["Message"]] = so.relationship(
         foreign_keys="Message.sender_id", back_populates="sender"
@@ -56,8 +64,9 @@ class Message(Base):
     recipient_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey('user.id'), nullable=False)
 
     encrypted_subject: so.Mapped[str] = so.mapped_column(sa.Text, nullable=False)
+    subject_nonce: so.Mapped[str] = so.mapped_column(sa.Text, nullable=False)
     encrypted_content: so.Mapped[str] = so.mapped_column(sa.Text, nullable=False)
-    iv: so.Mapped[str] = so.mapped_column(sa.Text, nullable=False)
+    content_nonce: so.Mapped[str] = so.mapped_column(sa.Text, nullable=False)
 
     ephemeral_public_key: so.Mapped[str] = so.mapped_column(sa.Text, nullable=False)
 
@@ -82,11 +91,13 @@ class Attachment(Base):
     message_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey('message.id'), nullable=False)
 
     filename: so.Mapped[str] = so.mapped_column(sa.String(255), nullable=False)
+    filename_nonce: so.Mapped[str] = so.mapped_column(sa.Text, nullable=False)
     mime_type: so.Mapped[str] = so.mapped_column(sa.String(128), nullable=False)
+    mime_type_nonce: so.Mapped[str] = so.mapped_column(sa.Text, nullable=False)
     file_size: so.Mapped[int] = so.mapped_column(sa.Integer, nullable=False)
 
     encrypted_data: so.Mapped[bytes] = so.mapped_column(sa.LargeBinary, nullable=False)
-    iv: so.Mapped[str] = so.mapped_column(sa.Text, nullable=False)
+    data_nonce: so.Mapped[str] = so.mapped_column(sa.Text, nullable=False)
 
     message: so.Mapped["Message"] = so.relationship(back_populates="attachments")
 

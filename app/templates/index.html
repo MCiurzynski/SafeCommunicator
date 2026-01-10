@@ -28,7 +28,7 @@
             
             <tr class="message-row" 
                 data-id="{{ msg.id }}" 
-                data-iv="{{ msg.iv }}" 
+                data-nonce="{{ msg.subject_nonce }}"
                 data-ephemeral="{{ msg.ephemeral_public_key }}" 
                 data-subject="{{ msg.encrypted_subject }}">
                 
@@ -84,7 +84,7 @@
             for (const row of rows) {
                 try {
                     const ephemeralPubKey = base64ToArrayBuffer(row.dataset.ephemeral);
-                    const blobIv = base64ToArrayBuffer(row.dataset.iv);
+                    const subjectNonce = base64ToArrayBuffer(row.dataset.nonce);
                     const blobSubject = base64ToArrayBuffer(row.dataset.subject);
 
                     const ephemeralPub = await window.crypto.subtle.importKey(
@@ -101,7 +101,7 @@
                     );
 
                     const decryptedSubject = await window.crypto.subtle.decrypt(
-                        { name: "AES-GCM", iv: blobIv }, aesKey, blobSubject
+                        { name: "AES-GCM", iv: subjectNonce }, aesKey, blobSubject
                     );
 
                     const subjectCell = row.querySelector('.subject-cell');

@@ -33,16 +33,31 @@ def send_message():
             recipient=recipient,
             
             encrypted_subject=form.subject_encrypted.data,
+            subject_nonce=form.subject_nonce.data,
             encrypted_content=form.content_encrypted.data,
-            iv=form.iv.data,
+            content_nonce=form.content_nonce.data,
             
             ephemeral_public_key=form.ephemeral_public_key.data,
             signature=form.signature.data
         )
         
         db.session.add(msg)
+        # db.session.flush()
         
-        
+        # if form.attachment_blob.data:
+        #     f = form.attachment_blob.data
+        #     encrypted_bytes = f.read()
+            
+        #     attachment = Attachment(
+        #         message_id=msg.id,
+        #         filename=form.attachment_filename.data,
+        #         mime_type=form.attachment_mime.data,
+        #         file_size=len(encrypted_bytes),
+        #         encrypted_data=encrypted_bytes,
+        #         iv=form.attachment_iv.data
+        #     )
+        #     db.session.add(attachment)
+
         db.session.commit()
         
 
