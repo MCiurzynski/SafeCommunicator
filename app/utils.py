@@ -27,5 +27,5 @@ def decrypt_totp_secret(encrypted_totp_secret):
         return decrypted_data.decode('utf-8')
         
     except (ValueError, KeyError) as e:
-        print(e)
+        current_app.logger.error(e)
         return None

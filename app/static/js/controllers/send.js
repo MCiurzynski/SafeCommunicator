@@ -9,7 +9,7 @@ fileInput.addEventListener('change', (event) => {
     const files = event.target.files; 
     
     if (files.length > 10) {
-        alert("Too much files.");
+        alert("Too many files. Maximum is 10.");
         fileInput.value = ""; 
     }
 
@@ -20,7 +20,7 @@ fileInput.addEventListener('change', (event) => {
     }
 
     if (totalSize > MAX_SIZE) {
-        alert("Files are to big. Max size is 100MB.");
+        alert("Total file size is too big. Max size is 100MB.");
         fileInput.value = ""; 
     }
 });

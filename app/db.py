@@ -22,7 +22,8 @@ class User(Base, UserMixin):
     username: so.Mapped[str] = so.mapped_column(sa.String(64), unique=True, nullable=False)
     email: so.Mapped[str] = so.mapped_column(sa.String(120), unique=True, nullable=False)
     
-    password_hash: so.Mapped[str] = so.mapped_column(sa.String(256))
+    password_hash: so.Mapped[str] = so.mapped_column(sa.String(256), nullable=False)
+    password_salt: so.Mapped[str] = so.mapped_column(sa.String(64), nullable=False)
 
     encrypted_totp_secret: so.Mapped[Optional[str]] = so.mapped_column(sa.Text, nullable=False)
     

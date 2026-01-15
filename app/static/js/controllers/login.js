@@ -20,7 +20,11 @@ document.addEventListener("DOMContentLoaded", () => {
             if (!username || !password || !totp) throw new Error("All fields required");
 
             // Get encryption key and logging hash
-            const salt = await crypto.sha256(Utils.strToUint8(username));
+            const res = await fetch(`/api/user/salt/${username}`);
+            if (!res.ok) throw new Error("Username not found");
+            const saltJson = await res.json();
+            const salt = Utils.base64ToArrayBuffer(await saltJson.password_salt);
+
             const secrets = await crypto.deriveSecretsFromPassword(password, salt);
 
             // logging to server

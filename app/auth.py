@@ -7,6 +7,7 @@ import qrcode
 import io
 from app import limiter
 import base64
+from passlib.hash import argon2
 
 
 bp = Blueprint('auth', __name__, url_prefix='/')
@@ -27,10 +28,13 @@ def login():
 
         error_msg = "Invalid username, password or 2FA"
 
-        if user is None:
-            return jsonify({'success': False, 'message': error_msg}), 401
-        
-        if not user.check_password(form.password_verifier.data):
+        if user:
+            is_valid = user.check_password(form.password_verifier.data)
+        else:
+            argon2.verify('dummy', '$argon2id$v=19$m=65536,t=3,p=4$4RzDeE/J+T/HOIewFiLk3A$hrnvgHjxuvh3emqI6pDRyBaI59CyODMGmJlS8/WL6bY')
+            is_valid = False
+
+        if not is_valid:
             return jsonify({'success': False, 'message': error_msg}), 401
 
         totp = pyotp.TOTP(user.totp_secret)
@@ -83,6 +87,7 @@ def register():
             encrypted_signing_private_key=form.encrypted_signing_private_key.data,
             signing_private_key_iv=form.signing_private_key_iv.data,
             
+            password_salt=form.password_salt.data
         )
         
         user.totp_secret = new_totp_secret

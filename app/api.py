@@ -42,3 +42,13 @@ def get_attachment(attachment_id):
         as_attachment=True,
         download_name='blob'
     )
+
+@bp.route('/user/salt/<username>')
+@limiter.limit('10 per minute')
+def get_user_salt(username):
+    user = db.session.scalar(db.select(User).where(User.username == username))
+    if user:
+        return jsonify({
+            'password_salt': user.password_salt
+        })
+    return jsonify({'error': 'User not found'}), 404

@@ -25,6 +25,7 @@ class RegisterForm(FlaskForm):
     website = StringField('Website')
 
     password_verifier = HiddenField('PasswordVerifier', validators=[DataRequired()])
+    password_salt = HiddenField('PasswordSalt', validators=[DataRequired()])
 
     public_key = HiddenField('PublicKey', validators=[DataRequired()])
     encrypted_private_key = HiddenField('EncPrivateKey', validators=[DataRequired()])

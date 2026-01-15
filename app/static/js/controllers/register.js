@@ -46,7 +46,7 @@ document.addEventListener("DOMContentLoaded", () => {
             if (!Utils.isValidUsername(username)) throw new Error("Invalid username");
 
             // Get encryption key and logging hash
-            const salt = await crypto.sha256(Utils.strToUint8(username));
+            const salt = await window.crypto.getRandomValues(new Uint8Array(16));
             const secrets = await crypto.deriveSecretsFromPassword(password, salt);
 
             // key generation
@@ -74,6 +74,7 @@ document.addEventListener("DOMContentLoaded", () => {
             document.getElementById('signing_private_key_iv').value = Utils.arrayBufferToBase64(wrappedSign.iv);
 
             document.getElementById('password_verifier').value = secrets.loginToken;
+            document.getElementById('password_salt').value = Utils.arrayBufferToBase64(salt);
 
             document.getElementById('password_raw').value = "";
             document.getElementById('password_second_raw').value = "";
