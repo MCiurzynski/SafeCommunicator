@@ -89,7 +89,11 @@ def register():
         user.set_password(form.password_verifier.data)
 
         db.session.add(user)
-        db.session.commit()
+        try:
+            db.session.commit()
+        except:
+            flash('Username taken')
+            return render_template('register.html', form=form)
 
         login_user(user)
         return redirect(url_for('auth.setup_2fa'))

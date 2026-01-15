@@ -3,7 +3,6 @@ services:
     build: .
     container_name: securechat_flask
     volumes:
-      - .:/app
       - secure_uploads:/app/uploads
     env_file:
       - .env

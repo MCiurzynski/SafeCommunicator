@@ -4,10 +4,10 @@ BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY')
     TOTP_ENCRYPTION_KEY = os.environ.get('TOTP_ENCRYPTION_KEY')
-    db_user = os.environ.get('POSTGRES_USER', 'secure_user')
-    db_pass = os.environ.get('POSTGRES_PASSWORD', 'password')
-    db_name = os.environ.get('POSTGRES_DB', 'securechat_db')
-    db_host = os.environ.get('DB_HOST', 'db')
+    db_user = os.environ.get('POSTGRES_USER')
+    db_pass = os.environ.get('POSTGRES_PASSWORD')
+    db_name = os.environ.get('POSTGRES_DB')
+    db_host = os.environ.get('DB_HOST')
 
     MAX_CONTENT_LENGTH = int(os.environ.get('MAX_CONTENT_LENGTH'))
 
