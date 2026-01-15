@@ -42,7 +42,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const confirm = document.getElementById('password_second_raw').value;
 
             if (password !== confirm) throw new Error("Passwords do not match");
-            if (zxcvbn(password).score < 2) throw new Error("Password too weak");
+            if (Utils.calculatePasswordStrength(password).score < 2) throw new Error("Password too weak");
             if (!Utils.isValidUsername(username)) throw new Error("Invalid username");
 
             // Get encryption key and logging hash

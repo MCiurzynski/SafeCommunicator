@@ -14,3 +14,5 @@ class Config:
     RATELIMIT_STORAGE_URI = os.environ.get('RATELIMIT_STORAGE_URI')
 
     SQLALCHEMY_DATABASE_URI = f"postgresql://{db_user}:{db_pass}@{db_host}:5432/{db_name}"
+
+    UPLOAD_FOLDER = os.environ.get('UPLOAD_FOLDER', '/app/uploads')

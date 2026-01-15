@@ -1,8 +1,8 @@
-from flask import Blueprint, jsonify, send_file
+from flask import Blueprint, jsonify, send_file, current_app
 from flask_login import login_required, current_user
 from app.db import db, User, Message, Attachment
 from app import limiter
-from io import BytesIO
+import os
 
 bp = Blueprint('api', __name__, url_prefix='/api')
 
@@ -27,23 +27,21 @@ def get_attachment(attachment_id):
     if not att:
         return jsonify({'error': 'Attachment not found'}), 404
 
-    if (
-        att.message.recipient_id != current_user.id and
-        att.message.sender_id != current_user.id
-    ):
+    # Sprawdzenie uprawnień (bez zmian)
+    if (att.message.recipient_id != current_user.id and 
+        att.message.sender_id != current_user.id):
         return jsonify({'error': 'Access denied'}), 403
 
-    raw_data = att.encrypted_data
+    # Budowanie pełnej ścieżki
+    full_path = os.path.join(current_app.config['UPLOAD_FOLDER'], att.file_path)
 
-    if not isinstance(raw_data, (bytes, bytearray)):
-        return jsonify({'error': 'Invalid attachment data'}), 500
+    if not os.path.exists(full_path):
+        return jsonify({'error': 'File missing on server'}), 500
 
-    buffer = BytesIO(raw_data)
-    buffer.seek(0)
-
+    # Serwowanie pliku z dysku
     return send_file(
-        buffer,
-        mimetype="application/octet-stream",
+        full_path,
+        mimetype="application/octet-stream", # Przeglądarka nie powinna próbować tego otwierać
         as_attachment=True,
-        download_name='blob'
+        download_name='blob' # Klient JS i tak sobie to nazwie po odszyfrowaniu
     )

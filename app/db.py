@@ -92,7 +92,7 @@ class Attachment(Base):
     encrypted_mime_type: so.Mapped[str] = so.mapped_column(sa.String(128), nullable=False)
     file_size: so.Mapped[int] = so.mapped_column(sa.Integer, nullable=False)
 
-    encrypted_data: so.Mapped[bytes] = so.mapped_column(sa.LargeBinary, nullable=False)
+    file_path: so.Mapped[str] = so.mapped_column(sa.String(512), nullable=False, unique=True)
 
     message: so.Mapped["Message"] = so.relationship(back_populates="attachments")
 
