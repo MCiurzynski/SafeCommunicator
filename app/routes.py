@@ -53,27 +53,20 @@ def send_message():
                 for i, file_storage in enumerate(files):
                     meta = metadata_list[i]
                 
-                # 1. Generujemy bezpieczną nazwę na dysku (UUID)
-                # Dzięki temu, nawet jak user wyśle "wirus.exe", my zapiszemy to jako "a1b2c3d4..."
                 storage_filename = f"{uuid.uuid4().hex}.enc"
                 
-                # 2. Budujemy pełną ścieżkę
                 save_path = os.path.join(current_app.config['UPLOAD_FOLDER'], storage_filename)
                 
-                # 3. Zapisujemy strumieniowo na dysk (nie wczytuje całego pliku do RAM!)
-                # Upewnij się, że katalog istnieje
                 os.makedirs(os.path.dirname(save_path), exist_ok=True)
                 file_storage.save(save_path)
                 
-                # Pobieramy rozmiar zapisanego pliku
                 file_size = os.path.getsize(save_path)
 
-                # 4. Tworzymy rekord w bazie (tylko wskaźnik)
                 attachment = Attachment(
                     message=msg,
                     encrypted_filename=meta['encrypted_filename'],
                     encrypted_mime_type=meta['encrypted_mime'],
-                    file_path=storage_filename,  # Zapisujemy tylko nazwę/ścieżkę względną
+                    file_path=storage_filename,
                     file_size=file_size
                 )
                 db.session.add(attachment)
@@ -107,7 +100,7 @@ def delete_message(message_id):
     msg = db.session.get(Message, message_id)
     
     if not msg or msg.recipient_id != current_user.id:
-        flash('Nie masz uprawnień.')
+        flash('Invalid.')
         return redirect(url_for('main.index'))
     
     for attachment in msg.attachments:
