@@ -2,30 +2,27 @@
 
 {% block content %}
 <div>
-    <div>
-        <h2>Inbox</h2>
-        <a href="{{ url_for('main.send_message') }}" class="btn btn-primary">
-            Send Message
-        </a>
+    <h2>Inbox</h2>
+    <div style="margin-bottom: 15px;">
+        <a href="{{ url_for('main.send_message') }}" class="btn">Send Message</a>
     </div>
 
-    <div id="key-status-missing" style="display: none;">
+    <div id="key-status-missing" class="error-panel">
         <strong>Attention:</strong> The private key is not loaded.
         <a href="{{ url_for('auth.logout') }}">Log out</a> and log in again.
     </div>
 
-    <table border="1" cellpadding="5" style="width: 100%; border-collapse: collapse;">
+    <table class="inbox-table">
         <thead>
-            <tr style="background-color: #c8adad;">
+            <tr class="inbox-header">
                 <th>From</th>
                 <th>Subject</th>
-                <th>Data</th>
+                <th>Date</th>
                 <th>Action</th>
             </tr>
         </thead>
         <tbody>
             {% for msg in messages %}
-            
             <tr class="message-row" 
                 data-id="{{ msg.id }}"
                 data-ephemeral="{{ msg.ephemeral_public_key }}" 
@@ -34,23 +31,23 @@
                 <td>
                     {{ msg.sender.username }}
                     {% if not msg.is_read %}
-                        <strong>New</strong>
+                        <span class="new-message-badge">New</span>
                     {% endif %}
                 </td>
                 
-                <td class="subject-cell" style="font-style: italic; color: gray;">
-                    Loading
+                <td class="subject-cell subject-loading">
+                    Loading...
                 </td>
                 
                 <td>{{ msg.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
                 
                 <td>
-                    <a href="{{ url_for('main.view_message', message_id=msg.id) }}">Otwórz</a>
+                    <a href="{{ url_for('main.view_message', message_id=msg.id) }}">Open</a>
                 </td>
             </tr>
             {% else %}
             <tr>
-                <td colspan="4" style="text-align: center;">Inbox is empty.</td>
+                <td colspan="4" class="empty-inbox">Inbox is empty.</td>
             </tr>
             {% endfor %}
         </tbody>

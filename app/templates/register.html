@@ -1,53 +1,48 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div>
-    <h3 style="margin-top: 0;">Register</h3>
+<div class="form-container">
+    <h3>Register</h3>
 
     <form id="registerForm" action="" method="post" novalidate>
         {{ form.hidden_tag() }}
 
-        <div style="display: none; visibility: hidden; position: absolute; left: -9999px;">
+        <div class="honeypot">
             {{ form.website.label }}
             {{ form.website(tabindex="-1", autocomplete="off") }}
         </div>
 
-        <div style="margin-bottom: 15px;">
-            {{ form.username.label }}<br>
-            {{ form.username(size=32) }}
+        <div class="form-group">
+            {{ form.username.label(class="form-label") }}
+            {{ form.username(class="form-control", autocomplete="username") }}
             
             {% for error in form.username.errors %}
-            <div style="color: red; font-size: small;">{{ error }}</div>
+            <div class="error-text">{{ error }}</div>
             {% endfor %}
         </div>
 
-        <div style="margin-bottom: 15px;">
-            {{ form.email.label }}<br>
-            {{ form.email(size=32) }}
+        <div class="form-group">
+            {{ form.email.label(class="form-label") }}
+            {{ form.email(class="form-control", autocomplete="email") }}
 
             {% for error in form.email.errors %}
-            <div style="color: red; font-size: small;">{{ error }}</div>
+            <div class="error-text">{{ error }}</div>
             {% endfor %}
         </div>
 
-
-        <div style="margin-bottom: 15px;">
+        <div class="form-group">
             <label for="password_raw" class="form-label">Password</label>
-            <br>
             <input type="password" id="password_raw" class="form-control" autocomplete="new-password">
 
-            <div style="margin-top: 5px; height: 5px; background-color: #eee; width: 100%;">
-                <div id="password-strength-bar" style="height: 100%; width: 0%; transition: width 0.3s;"></div>
+            <div class="password-meter-container">
+                <div id="password-strength-bar" class="password-meter-bar"></div>
             </div>
-            <small id="password-strength-text" style="color: gray;">Password strength</small>
-
+            <small id="password-strength-text" class="password-help-text">Password strength</small>
         </div>
 
-        <div style="margin-bottom: 15px;">
+        <div class="form-group">
             <label for="password_second_raw" class="form-label">Repeat Password</label>
-            <br>
             <input type="password" id="password_second_raw" class="form-control" autocomplete="new-password">
-            
         </div>
         
         {{ form.password_verifier(id="password_verifier") }}
@@ -59,11 +54,11 @@
         {{ form.encrypted_signing_private_key(id="encrypted_signing_private_key") }}
         {{ form.signing_private_key_iv(id="signing_private_key_iv") }}
 
-        <div style="margin-top: 20px;">
-            {{ form.submit(id="submitBtn") }}
+        <div class="form-group" style="margin-top: 20px;">
+            {{ form.submit(id="submitBtn", class="btn") }}
         </div>
         
-        <div id="statusMessage" style="margin-top: 10px; font-weight: bold; color: blue;"></div>
+        <div id="statusMessage" class="status-message"></div>
     </form>
 </div>
 

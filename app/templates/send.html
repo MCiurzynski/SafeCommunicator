@@ -1,58 +1,56 @@
 {% extends "base.html" %}
 
 {% block content %}
-<h2>Send Message</h2>
+<div class="form-container">
+    <h2>Send Message</h2>
 
-<div id="key-error" style="display: none;">
-    <strong>Attention:</strong> The private key is not loaded.
-    <a href="{{ url_for('auth.logout') }}">Log out</a> and log in again.
-</div>
-
-<form id="sendForm" method="post" enctype="multipart/form-data">
-    {{ form.hidden_tag() }}
-
-    <div>
-        {{ form.recipient.label(class="form-label") }}
-            <br>
-        {{ form.recipient(id="recipient", class="form-control", autocomplete="off") }}
+    <div id="key-error" class="error-panel">
+        <strong>Attention:</strong> The private key is not loaded.
+        <a href="{{ url_for('auth.logout') }}">Log out</a> and log in again.
     </div>
 
-    <div style="margin-bottom: 15px;">
+    <form id="sendForm" method="post" enctype="multipart/form-data">
+        {{ form.hidden_tag() }}
+
+        <div class="form-group">
+            {{ form.recipient.label(class="form-label") }}
+            {{ form.recipient(id="recipient", class="form-control", autocomplete="off") }}
+        </div>
+
+        <div class="form-group">
             <label for="subject" class="form-label">Subject</label>
-            <br>
             <input type="text" id="subject" class="form-control">
         </div>
 
-    <div style="margin-bottom: 15px;">
-        <label for="content" class="form-label">Content</label>
-            <br>
-        <textarea id="content" rows="10" cols="100"></textarea>
-    </div>
+        <div class="form-group">
+            <label for="content" class="form-label">Content</label>
+            <textarea id="content" class="form-control" rows="10"></textarea>
+        </div>
 
-    <div style="margin-bottom: 15px;">
-        <label class="form-label">Attachment</label>
-        <input type="file" id="file_input" class="form-control" multiple>
-    </div>
-    <div>
-        Max 10 files, max 100MB.
-    </div>
+        <div class="form-group">
+            <label class="form-label">Attachment</label>
+            <input type="file" id="file_input" class="form-control" multiple>
+            <small class="password-help-text">Max 10 files, max 100MB.</small>
+        </div>
 
-    {{ form.subject_encrypted(id='subject_encrypted') }}
-    {{ form.content_encrypted(id='content_encrypted') }}
-    
-    {{ form.ephemeral_public_key(id="ephemeral_public_key") }}
-    
-    {{ form.signature(id="signature") }}
-    
-    {{ form.attachment_blob(id="attachment_blob", style="display:none") }}
+        {{ form.subject_encrypted(id='subject_encrypted') }}
+        {{ form.content_encrypted(id='content_encrypted') }}
+        {{ form.ephemeral_public_key(id="ephemeral_public_key") }}
+        {{ form.signature(id="signature") }}
+        
+        <div class="honeypot">
+            {{ form.attachment_blob(id="attachment_blob") }}
+        </div>
 
-    {{ form.attachments_metadata_json(id="attachments_metadata_json") }}
+        {{ form.attachments_metadata_json(id="attachments_metadata_json") }}
 
-    <div style="margin-top: 20px;">
-        <button type="submit" id="submitBtn">Send Message</button>
-    </div>
-    <div id="status"></div>
-</form>
+        <div class="form-group" style="margin-top: 20px;">
+            <button type="submit" id="submitBtn" class="btn">Send Message</button>
+        </div>
+        
+        <div id="status" class="status-message"></div>
+    </form>
+</div>
 
 <script type="module" src="{{ url_for('static', filename='js/controllers/send.js') }}" nonce="{{ csp_nonce() }}"></script>
 {% endblock %}

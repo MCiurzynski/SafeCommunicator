@@ -17,7 +17,7 @@ csp = {
     'default-src': '\'self\'',
     'script-src': ['\'self\''],
     'connect-src': ['\'self\''],
-    'style-src': ['\'self\'', '\'unsafe-inline\''],
+    'style-src': ['\'self\''],
     'img-src': ['\'self\'', 'data:']
 }
 

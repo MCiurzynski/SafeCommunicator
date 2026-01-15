@@ -2,65 +2,59 @@
 
 {% block content %}
 <div>
-    <div>
+    <div class="message-actions">
         <h2>Message</h2>
-        <div>
-            <a href="{{ url_for('main.index') }}">Wróć</a>
-            
-            <form action="{{ url_for('main.delete_message', message_id=msg.id) }}" method="POST" style="display:inline;">
-                <button type="submit">Delete</button>
-            </form>
-        </div>
+        <a href="{{ url_for('main.index') }}" class="btn" style="background-color: #6c757d;">Back</a>
+        
+        <form action="{{ url_for('main.delete_message', message_id=msg.id) }}" method="POST" style="display:inline;">
+            <button type="submit" class="btn" style="background-color: #dc3545;">Delete</button>
+        </form>
     </div>
 
-    <div id="error_panel" style="display: none; color: red; margin-top: 10px;">
+    <div id="error_panel" class="error-panel">
         <strong>Error:</strong> <span id="error_msg"></span>
     </div>
 
-    <div id="message_container" style="display: none; margin-top: 20px;">
+    <div id="message_container" style="display: none;">
         <div>
-            <div>
-                <span id="sig_badge" style="padding: 3px 6px; border-radius: 4px; font-size: 0.9em; background-color: #eee;">
-                    Downloading attachments & verifying signature...
-                </span>
-            </div>
+            <span id="sig_badge" class="signature-badge">
+                Downloading attachments & verifying signature...
+            </span>
         </div>
-        <div style="margin-top: 10px; padding: 10px; border: 1px solid #eee;">
-            <div>
-                <div>
-                    <strong>From:</strong> {{ msg.sender.username }}
-                </div>
-                <div>
-                    <strong>Date:</strong> {{ msg.created_at.strftime('%Y-%m-%d %H:%M') }}
-                </div>
-                <div>
+        
+        <div class="message-box">
+            <div class="message-meta">
+                <div><strong>From:</strong> {{ msg.sender.username }}</div>
+                <div><strong>Date:</strong> {{ msg.created_at.strftime('%Y-%m-%d %H:%M') }}</div>
+                <div style="margin-top: 10px;">
                     <h4>Subject: <span id="subject_display"></span></h4>
                 </div>
             </div>
+            
             <hr>
-            <div id="content_display" style="white-space: pre-wrap;"></div>
+            
+            <div id="content_display" class="message-content"></div>
 
             {% if msg.attachments %}
-            <div id="attachments_section" style="display:none; margin-top: 30px; border-top: 2px solid #ccc; padding-top: 10px;">
+            <div id="attachments_section" class="attachments_section">
                 <h4>Attachments:</h4>
                 <div id="attachments_list">
                 {% for att in msg.attachments %}
                 <div class="attachment-row" 
-                     data-id="{{ att.id }}"
-                     style="margin-bottom: 10px; padding: 5px; background-color: #f9f9f9; border: 1px solid #ddd;">
+                     data-id="{{ att.id }}">
                     
-                    <strong>File:</strong> 
-                    <span class="encrypted-filename" 
-                          data-enc-name="{{ att.encrypted_filename }}" 
-                          data-enc-mime="{{ att.encrypted_mime_type }}"
-                          style="font-family: monospace;">
-                        [Verifying...]
-                    </span>
+                    <div>
+                        <strong>File:</strong> 
+                        <span class="encrypted-filename secret-code" 
+                              data-enc-name="{{ att.encrypted_filename }}" 
+                              data-enc-mime="{{ att.encrypted_mime_type }}">
+                            [Verifying...]
+                        </span>
+                    </div>
                     
-                    <button type="button" class="btn btn-sm btn-success btn-download" 
+                    <button type="button" class="btn btn-success btn-sm btn-download" 
                             data-id="{{ att.id }}" 
-                            disabled 
-                            style="margin-left: 10px;">
+                            disabled>
                         Save
                     </button>
                 </div>
@@ -72,7 +66,6 @@
     </div>
 </div>
 
-{# DANE Z BAZY (HIDDEN) #}
 <input type="hidden" id="ephemeral_key" value="{{ msg.ephemeral_public_key }}">
 <input type="hidden" id="sender" value="{{ msg.sender.username }}">
 <input type="hidden" id="encrypted_subject" value="{{ msg.encrypted_subject }}">
@@ -80,5 +73,4 @@
 <input type="hidden" id="signature" value="{{ msg.signature }}">
 
 <script type="module" src="{{ url_for('static', filename='js/controllers/view.js') }}" nonce="{{ csp_nonce() }}"></script>
-
 {% endblock %}
