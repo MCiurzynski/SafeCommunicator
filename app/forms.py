@@ -1,5 +1,5 @@
 from flask_wtf import FlaskForm
-from wtforms import StringField, SubmitField, HiddenField, FileField
+from wtforms import StringField, SubmitField, HiddenField, MultipleFileField
 from wtforms.validators import DataRequired, Email, EqualTo, Length, ValidationError, Regexp
 from app.db import db, User
 
@@ -39,12 +39,12 @@ class RegisterForm(FlaskForm):
     def validate_username(self, username):
         user = db.session.scalar(db.select(User).where(User.username == username.data))
         if user is not None:
-            raise ValidationError('Login jest zajęty.')
+            raise ValidationError('Login is used.')
 
     def validate_email(self, email):
         user = db.session.scalar(db.select(User).where(User.email == email.data))
         if user is not None:
-            raise ValidationError('Email jest zajęty.')
+            raise ValidationError('Email is used.')
 
 
 class SendMessageForm(FlaskForm):
@@ -52,18 +52,11 @@ class SendMessageForm(FlaskForm):
     subject_encrypted = HiddenField('Subject', validators=[DataRequired()])
     content_encrypted = HiddenField('Content', validators=[DataRequired()])
     
-    subject_nonce = HiddenField('SubjectNonce', validators=[DataRequired()])
-    content_nonce = HiddenField('ContentNonce', validators=[DataRequired()])
-    
     ephemeral_public_key = HiddenField('EphemeralPublicKey', validators=[DataRequired()])
     
     signature = HiddenField('Signature', validators=[DataRequired()])
 
-    attachment_blob = FileField('Attachment')
-    attachment_nonce = HiddenField('AttNonce')
-    attachment_filename = HiddenField('AttFilename')
-    attachment_filename_nonce = HiddenField('AttFilenameNonce')
-    attachment_mime = HiddenField('AttMime')
-    attachment_mime_nonce = HiddenField('AttMimeNonce')
+    attachment_blob = MultipleFileField('Attachment')
+    attachments_metadata_json = HiddenField('AttachmentsMetadataJSON')
 
     submit = SubmitField('Send')

@@ -12,7 +12,7 @@ import base64
 bp = Blueprint('auth', __name__, url_prefix='/')
 
 @bp.route('/login', methods=['POST', 'GET'])
-@limiter.limit("50 per minute")
+@limiter.limit("5 per minute")
 def login():
     if current_user.is_authenticated:
         return redirect(url_for('main.index'))
@@ -25,7 +25,7 @@ def login():
             db.select(User).where(User.username == form.username.data)
         )
 
-        error_msg = "Nieprawidłowy login, hasło lub kod 2FA"
+        error_msg = "Invalid username, password or 2FA"
 
         if user is None:
             return jsonify({'success': False, 'message': error_msg}), 401
@@ -57,7 +57,7 @@ def login():
 
 
 @bp.route('/register', methods=['POST', 'GET'])
-@limiter.limit("50 per minute")
+@limiter.limit("15 per hour")
 def register():
     if current_user.is_authenticated:
         return redirect(url_for('main.index'))
@@ -99,6 +99,7 @@ def register():
 
 @bp.route('/setup-2fa')
 @login_required
+@limiter.limit("100 per hour")
 def setup_2fa():
     user = current_user
     if not user.totp_secret:
@@ -120,12 +121,14 @@ def setup_2fa():
 
 
 @bp.route('/logout')
+@limiter.limit("5 per minute")
 def logout():
     logout_user()
     return redirect(url_for('main.index'))
 
 @bp.route('/regenerate_2fa')
 @login_required
+@limiter.limit("5 per minute")
 def regenerate_2fa():
     user = current_user
     new_totp_secret = pyotp.random_base32()

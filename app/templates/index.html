@@ -27,8 +27,7 @@
             {% for msg in messages %}
             
             <tr class="message-row" 
-                data-id="{{ msg.id }}" 
-                data-nonce="{{ msg.subject_nonce }}"
+                data-id="{{ msg.id }}"
                 data-ephemeral="{{ msg.ephemeral_public_key }}" 
                 data-subject="{{ msg.encrypted_subject }}">
                 
@@ -58,71 +57,5 @@
     </table>
 </div> 
 
-<script>
-    async function decryptSubjects() {
-        const privKeyStr = sessionStorage.getItem("dec_enc_key");
-        
-        if (!privKeyStr) {
-            document.getElementById('key-status-missing').style.display = 'block';
-            document.querySelectorAll('.subject-cell').forEach(el => {
-                el.innerText = "Missing private key";
-            });
-            return;
-        }
-
-        try {
-            const privKeyJSON = JSON.parse(privKeyStr);
-            const privKey = await window.crypto.subtle.importKey(
-                "jwk", privKeyJSON,
-                { name: "X25519" },
-                false, ["deriveKey"]
-            );
-
-            const dec = new TextDecoder();
-            const rows = document.querySelectorAll('.message-row');
-
-            for (const row of rows) {
-                try {
-                    const ephemeralPubKey = base64ToArrayBuffer(row.dataset.ephemeral);
-                    const subjectNonce = base64ToArrayBuffer(row.dataset.nonce);
-                    const blobSubject = base64ToArrayBuffer(row.dataset.subject);
-
-                    const ephemeralPub = await window.crypto.subtle.importKey(
-                        "spki", ephemeralPubKey,
-                        { name: "X25519" },
-                        false, []
-                    );
-
-                    const aesKey = await window.crypto.subtle.deriveKey(
-                        { name: "X25519", public: ephemeralPub },
-                        privKey,
-                        { name: "AES-GCM", length: 256 },
-                        false, ["decrypt"]
-                    );
-
-                    const decryptedSubject = await window.crypto.subtle.decrypt(
-                        { name: "AES-GCM", iv: subjectNonce }, aesKey, blobSubject
-                    );
-
-                    const subjectCell = row.querySelector('.subject-cell');
-                    subjectCell.innerText = dec.decode(decryptedSubject);
-                    subjectCell.classList.remove('text-muted');
-                    subjectCell.style.fontWeight = "bold";
-
-                } catch (err) {
-                    console.error("Error while decrypting row:", err);
-                    row.querySelector('.subject-cell').innerText = "Error";
-                }
-            }
-
-        } catch (err) {
-            console.error("Main Error:", err);
-            document.getElementById('key-status-missing').innerText = "Crypto Error.";
-            document.getElementById('key-status-missing').style.display = 'block';
-            document.getElementById('key-status-ok').style.display = 'none';
-        }
-    }
-
-    window.addEventListener('DOMContentLoaded', decryptSubjects);
-</script>
+<script type="module" src="{{ url_for('static', filename='js/controllers/index.js') }}" nonce="{{ csp_nonce() }}"></script>
 {% endblock %}

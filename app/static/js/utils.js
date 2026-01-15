@@ -1,136 +1,79 @@
-/*
-Konwertuje ArrayBuffer (dane binarne) na ciąg Base64.
-*/
-function arrayBufferToBase64(buffer) {
-    const bytes = new Uint8Array(buffer);
-    return bytes.toBase64();
-}
+export const Utils = {
+    // Base64 -> ArrayBuffer
+    base64ToArrayBuffer: (base64) => {
+        const binaryString = window.atob(base64);
+        const len = binaryString.length;
+        const bytes = new Uint8Array(len);
+        for (let i = 0; i < len; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
+        }
+        return bytes.buffer;
+    },
 
-/*
-Konwertuje ciąg Base64 na ArrayBuffer (dane binarne).
-*/
-function base64ToArrayBuffer(base64) {
-    const bytes = Uint8Array.fromBase64(base64);
-    return bytes.buffer;
-}
+    // ArrayBuffer -> Base64
+    arrayBufferToBase64: (buffer) => {
+        const bytes = new Uint8Array(buffer);
+        let binary = '';
+        const len = bytes.byteLength;
+        for (let i = 0; i < len; i++) {
+            binary += String.fromCharCode(bytes[i]);
+        }
+        return window.btoa(binary);
+    },
 
-/*
-Pomocnicza funkcja do zamiany zwykłego tekstu na ArrayBuffer (UTF-8).
-*/
-function str2ab(str) {
-    const enc = new TextEncoder();
-    return enc.encode(str);
-}
+    // String -> Uint8Array (UTF-8)
+    strToUint8: (str) => {
+        return new TextEncoder().encode(str);
+    },
 
-function base64ToUint8Array(base64) {
-    var binary_string = window.atob(base64);
-    var len = binary_string.length;
-    var bytes = new Uint8Array(len);
-    for (var i = 0; i < len; i++) {
-        bytes[i] = binary_string.charCodeAt(i);
-    }
+    // Uint8Array -> String (UTF-8)
+    uint8ToStr: (arr) => {
+        return new TextDecoder().decode(arr);
+    },
 
-    return bytes;
-}
+    concatBuffers: (...buffers) => {
+        let totalLength = buffers.reduce((sum, b) => sum + b.byteLength, 0);
+        let temp = new Uint8Array(totalLength);
+        let offset = 0;
+        for (let buf of buffers) {
+            temp.set(new Uint8Array(buf), offset);
+            offset += buf.byteLength;
+        }
+        return temp.buffer;
+    },
 
-async function getSaltFromUsername(username) {
-    const encoder = new TextEncoder();
-    const data = encoder.encode(username); 
-
-    const hashBuffer = await window.crypto.subtle.digest('SHA-256', data);
+    splitCipherIV: (dataBuffer) => {
+        const arr = new Uint8Array(dataBuffer);
+        if (arr.length < 12) throw new Error("Data too short for IV extraction");
+        const cipherText = arr.slice(0, arr.length - 12);
+        const nonce = arr.slice(arr.length - 12);
+        return { cipherText, nonce };
+    },
     
-    return new Uint8Array(hashBuffer);
-}
+    isValidUsername: (username) => /^[a-zA-Z0-9_-]+$/.test(username),
+    isValidEmail: (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email),
 
+    calculatePasswordEntropy: (password) => {
+        let poolSize = 0;
+        
+        if (/[a-z]/.test(password)) poolSize += 26;
+        if (/[A-Z]/.test(password)) poolSize += 26;
+        if (/\d/.test(password))    poolSize += 10;
+        if (/[^a-zA-Z\d]/.test(password)) poolSize += 33; 
 
-async function deriveSecrets(password, salt) {
-    const enc = new TextEncoder();
+        if (password.length === 0 || poolSize === 0) return 0;
 
-    let hashResult;
-    try {
-        hashResult = await argon2.hash({
-            pass: password,
-            salt: salt,       
-            time: 2,
-            mem: 16 * 1024,
-            hashLen: 32, 
-            parallelism: 1,
-            type: argon2.ArgonType.Argon2id 
-        });
-    } catch (e) {
-        console.error("Argon2 Error:", e);
-        throw new Error("Błąd kryptograficzny Argon2");
+        const entropy = password.length * Math.log2(poolSize);
+        
+        return Math.round(entropy);
+    },
+
+    calculatePasswordStrength: (password) => {
+        const entropy = Utils.calculatePasswordEntropy(password);
+        if (entropy < 28) return 0;
+        if (entropy < 36) return 1;
+        if (entropy < 60) return 2;
+        if (entropy < 128) return 3;
+        return 4;
     }
-
-    const masterKey = await window.crypto.subtle.importKey(
-        "raw",
-        hashResult.hash,
-        { name: "HKDF" },
-        false,
-        ["deriveKey"]
-    );
-
-    const encryptionKey = await window.crypto.subtle.deriveKey(
-        {
-            name: "HKDF",
-            hash: "SHA-256",
-            salt: new Uint8Array(),
-            info: enc.encode("enc")
-        },
-        masterKey,
-        { name: "AES-GCM", length: 256 },
-        false, 
-        ["wrapKey", "unwrapKey"]
-    );
-
-    const loginTokenKey = await window.crypto.subtle.deriveKey(
-        {
-            name: "HKDF",
-            hash: "SHA-256",
-            salt: new Uint8Array(),
-            info: enc.encode("auth")
-        },
-        masterKey,
-        { name: "HMAC", hash: "SHA-256" },
-        true, 
-        ["sign"]
-    );
-    
-    const loginTokenRaw = await window.crypto.subtle.exportKey("raw", loginTokenKey);
-
-    return {
-        loginToken: arrayBufferToBase64(loginTokenRaw),
-        encryptionKey: encryptionKey
-    };
-}
-
-function isValidUsername(username) {
-    const regex = /^[a-zA-Z0-9_-]+$/;
-    return regex.test(username);
-}
-
-function isValidEmail(email) {
-    const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return regex.test(email);
-}
-
-async function signData(signKey, ...args) {
-    const enc = new TextEncoder();
-    let signData = '';
-    for (let arg of args) signData += arg;
-    const sign = await window.crypto.subtle.sign({name: 'Ed25519'}, signKey, enc.encode(signData));
-    return sign;
-}
-
-async function verifySignature(senderVerifyKey, signature, ...args) {
-    const enc = new TextEncoder();
-    let signData = '';
-    for (let arg of args) signData += arg;
-    const isValid = await window.crypto.subtle.verify(
-        { name: 'Ed25519'},
-        senderVerifyKey,
-        signature,
-        enc.encode(signData)
-    );
-    return isValid;
-}
+};
