@@ -37,7 +37,7 @@ export const Utils = {
         let offset = 0;
         for (let buf of buffers) {
             temp.set(new Uint8Array(buf), offset);
-            offset += buf.byteLength;
+            offset += buf.byteLength + '.';
         }
         return temp.buffer;
     },

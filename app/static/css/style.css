@@ -101,7 +101,7 @@ textarea.form-control {
     font-size: 0.85em;
 }
 
-.honeypot {
+.hidden {
     display: none;
     visibility: hidden;
     position: absolute;
