@@ -5,6 +5,7 @@ from flask_limiter.util import get_remote_address
 from flask_talisman import Talisman
 from flask_login import LoginManager
 from werkzeug.middleware.proxy_fix import ProxyFix
+from flask_session import Session
 
 limiter = Limiter(
     key_func=get_remote_address,
@@ -35,6 +36,11 @@ def create_app(test_config=None):
     )
     
     limiter.init_app(app)
+
+    Session(app)
+    
+    limiter.init_app(app)
+    login_manager.init_app(app)
     
     login_manager.init_app(app)
     login_manager.session_protection = "strong"

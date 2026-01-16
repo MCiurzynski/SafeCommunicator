@@ -3,6 +3,9 @@ from flask_login import login_required, current_user
 from app.db import db, User, Message, Attachment
 from app import limiter
 import os
+import hmac
+import hashlib
+import base64
 
 bp = Blueprint('api', __name__, url_prefix='/api')
 
@@ -47,8 +50,20 @@ def get_attachment(attachment_id):
 @limiter.limit('10 per minute')
 def get_user_salt(username):
     user = db.session.scalar(db.select(User).where(User.username == username))
+    
     if user:
         return jsonify({
             'password_salt': user.password_salt
         })
-    return jsonify({'error': 'User not found'}), 404
+    
+    secret_key = current_app.config['SECRET_KEY'].encode('utf-8')
+    
+    h = hmac.new(secret_key, username.encode('utf-8'), hashlib.sha256)
+    
+    fake_salt_bytes = h.digest()[:16] 
+
+    fake_salt_b64 = base64.b64encode(fake_salt_bytes).decode('utf-8')
+
+    return jsonify({
+        'password_salt': fake_salt_b64
+    })
