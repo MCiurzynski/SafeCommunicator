@@ -22,7 +22,7 @@ def index():
 
 @bp.route('/send', methods=['GET', 'POST'])
 @login_required
-@limiter.limit('10 per minute')
+@limiter.limit(lambda: "50 per minute" if request.method == "GET" else "10 per minute")
 def send_message():
     form = SendMessageForm()
     if form.validate_on_submit():

@@ -13,7 +13,7 @@ from passlib.hash import argon2
 bp = Blueprint('auth', __name__, url_prefix='/')
 
 @bp.route('/login', methods=['POST', 'GET'])
-@limiter.limit("5 per minute")
+@limiter.limit(lambda: "100 per minute" if request.method == "GET" else "5 per minute")
 def login():
     if current_user.is_authenticated:
         return redirect(url_for('main.index'))
@@ -61,7 +61,7 @@ def login():
 
 
 @bp.route('/register', methods=['POST', 'GET'])
-@limiter.limit("15 per hour")
+@limiter.limit(lambda: "100 per minute" if request.method == "GET" else "10 per hour")
 def register():
     if current_user.is_authenticated:
         return redirect(url_for('main.index'))
