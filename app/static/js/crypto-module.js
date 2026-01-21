@@ -73,6 +73,18 @@ export class E2ECrypto {
         return await window.crypto.subtle.generateKey({ name: algo }, true, usages);
     }
 
+    async generateAESKey() {
+        const key = await window.crypto.subtle.generateKey(
+        {
+            name: CFG.encAlgo,
+            length: CFG.encLen,
+        },
+        true,
+        ["encrypt", "decrypt"],
+        );
+        return key;
+    }
+
     async wrapKey(keyToWrap, wrappingKey) {
         const iv = window.crypto.getRandomValues(new Uint8Array(CFG.ivLen));
         const wrapped = await window.crypto.subtle.wrapKey(

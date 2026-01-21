@@ -16,6 +16,8 @@ bp = Blueprint('auth', __name__, url_prefix='/')
 @bp.route('/login', methods=['POST', 'GET'])
 @limiter.limit(lambda: "100 per minute" if request.method == "GET" else "5 per minute")
 def login():
+    error_msg = "Invalid username, password or 2FA"
+
     if current_user.is_authenticated:
         return redirect(url_for('main.index'))
     
@@ -27,16 +29,29 @@ def login():
             db.select(User).where(User.username == form.username.data)
         )
 
-        error_msg = "Invalid username, password or 2FA"
-
         if user:
-            is_valid = user.check_password(form.password_verifier.data)
+            password_valid = user.check_password(form.password_verifier.data)
+        
+            totp_secret = user.totp_secret
+            if totp_secret:
+                totp = pyotp.TOTP(totp_secret)
+                totp_valid = totp.verify(form.totp_code.data, valid_window=1)
+            else:
+                totp_valid = False
+            
+            is_valid = password_valid and totp_valid
+
         else:
             argon2.verify('dummy', '$argon2id$v=19$m=65536,t=3,p=4$4RzDeE/J+T/HOIewFiLk3A$hrnvgHjxuvh3emqI6pDRyBaI59CyODMGmJlS8/WL6bY')
+            fake_secret = pyotp.random_base32() 
+            totp = pyotp.TOTP(fake_secret)
+            totp.verify(form.totp_code.data, valid_window=1)
+            
             is_valid = False
 
-        totp = pyotp.TOTP(user.totp_secret) ## wywali się
-        if not totp.verify(form.totp_code.data, valid_window=1) or is_valid:
+        
+        if not is_valid:
+            flash(error_msg, 'error')
             return jsonify({'success': False, 'message': error_msg}), 401
         
         login_user(user)
@@ -53,7 +68,8 @@ def login():
         })
 
     if request.method == 'POST' and not form.validate():
-        return jsonify({'success': False, 'message': "Error"}), 400
+        flash(error_msg, 'error')
+        return jsonify({'success': False, 'message': error_msg}), 400
 
     return render_template('login.html', form=form)
 

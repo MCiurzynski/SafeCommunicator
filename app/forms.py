@@ -61,6 +61,8 @@ class SendMessageForm(FlaskForm):
     content_encrypted = HiddenField('Content', validators=[DataRequired()])
     
     ephemeral_public_key = HiddenField('EphemeralPublicKey', validators=[DataRequired()])
+    sender_encrypted_aes_key = HiddenField('SenderEncryptedAESKey', validators=[DataRequired()])
+    recipient_encrypted_aes_key = HiddenField('RecipientEncryptedAESKey', validators=[DataRequired()])
     
     signature = HiddenField('Signature', validators=[DataRequired()])
 

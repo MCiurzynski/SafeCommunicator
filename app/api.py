@@ -74,3 +74,11 @@ def get_user_salt(username):
     return jsonify({
         'password_salt': fake_salt_b64
     })
+
+@bp.route('/me')
+@login_required
+def get_me():
+    return jsonify({
+        'id': current_user.id,
+        'username': current_user.username
+    })

@@ -6,9 +6,11 @@
         <h2>Message</h2>
         <a href="{{ url_for('main.index') }}" class="btn" style="background-color: #6c757d;">Back</a>
         
+        {% if current_user == msg.recipient %}
         <form action="{{ url_for('main.delete_message', message_id=msg.id) }}" method="POST" style="display:inline;">
             <button type="submit" class="btn" style="background-color: #dc3545;">Delete</button>
         </form>
+        {% endif %}
     </div>
 
     <div id="error_panel" class="error-panel">
@@ -71,6 +73,8 @@
 <input type="hidden" id="encrypted_subject" value="{{ msg.encrypted_subject }}">
 <input type="hidden" id="encrypted_content" value="{{ msg.encrypted_content }}">
 <input type="hidden" id="signature" value="{{ msg.signature }}">
+<input type="hidden" id="key_for_recipient" value="{{ msg.recipient_encrypted_aes_key }}">
+<input type="hidden" id="key_for_sender" value="{{ msg.sender_encrypted_aes_key }}">
 
 <script type="module" src="{{ url_for('static', filename='js/controllers/view.js') }}" nonce="{{ csp_nonce() }}"></script>
 {% endblock %}

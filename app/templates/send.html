@@ -36,6 +36,8 @@
         {{ form.subject_encrypted(id='subject_encrypted') }}
         {{ form.content_encrypted(id='content_encrypted') }}
         {{ form.ephemeral_public_key(id="ephemeral_public_key") }}
+        {{ form.sender_encrypted_aes_key(id="sender_encrypted_aes_key") }}
+        {{ form.recipient_encrypted_aes_key(id="recipient_encrypted_aes_key") }}
         {{ form.signature(id="signature") }}
         
         <div class="hidden">

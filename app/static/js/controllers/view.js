@@ -11,13 +11,23 @@ document.addEventListener("DOMContentLoaded", async () => {
         const privKeyStr = sessionStorage.getItem('dec_enc_key');
         if (!privKeyStr) throw new Error("Private key absent. Please relog.");
         
+        // get data from html
         const senderUsername = document.getElementById('sender').value;
         const signature = Utils.base64ToArrayBuffer(document.getElementById('signature').value);
         const ephemeralKeyRaw = Utils.base64ToArrayBuffer(document.getElementById('ephemeral_key').value);
         const subjRaw = Utils.base64ToArrayBuffer(document.getElementById('encrypted_subject').value);
         const contRaw = Utils.base64ToArrayBuffer(document.getElementById('encrypted_content').value);
+        
+        const keyForRecipientB64 = document.getElementById('key_for_recipient').value;
+        const keyForSenderB64 = document.getElementById('key_for_sender').value;
 
-        // getting sender public key
+        // get current user
+        const meRes = await fetch('/api/me');
+        if (!meRes.ok) throw new Error("Failed to fetch user info");
+        const me = await meRes.json();
+        const currentUsername = me.username;
+
+        // get sender public key
         const keyRes = await fetch(`/api/get_public_key/${senderUsername}`);
         const keyData = await keyRes.json();
         if (keyData.error) throw new Error("Sender public key not found");
@@ -28,7 +38,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             true
         );
 
-        // getting attachments
+        // get attachments
         const partsToVerify = [subjRaw, contRaw];
         const rows = document.querySelectorAll('.attachment-row');
         
@@ -36,13 +46,13 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         for (let row of rows) {
             const attId = row.dataset.id;
-            // Fetch blob
+            // fetch blob
             const res = await fetch(`/api/attachment/${attId}`);
             if (!res.ok) throw new Error("Attachment fetch failed");
             const blob = await res.blob();
             const buffer = await blob.arrayBuffer();
             
-            // Cache
+            // cache blob
             attachmentCache.set(attId, buffer);
 
             // metadata
@@ -50,13 +60,13 @@ document.addEventListener("DOMContentLoaded", async () => {
             const encName = Utils.base64ToArrayBuffer(span.dataset.encName);
             const encMime = Utils.base64ToArrayBuffer(span.dataset.encMime);
 
-            // adding to check sign
+            // add to verification
             partsToVerify.push(buffer);
             partsToVerify.push(encName);
             partsToVerify.push(encMime);
         }
 
-        // sing verification
+        // verify signature
         const isValid = await crypto.verify(senderVerifyKey, signature, ...partsToVerify);
         
         const badge = document.getElementById('sig_badge');
@@ -74,22 +84,47 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
 
         if (proceed) {
-            // getting AES key
-            const myPrivKey = await crypto.importKey(JSON.parse(privKeyStr), 'encryption');
-            const ephemKey = await crypto.importKey(ephemeralKeyRaw, 'encryption', true);
-            const aesKey = await crypto.deriveSharedKey(myPrivKey, ephemKey);
+            // decrypt session key
+            let targetEnvelopeB64;
 
-            // decrypting subject and content
-            const subjDec = await crypto.decryptData(aesKey, subjRaw);
-            const contDec = await crypto.decryptData(aesKey, contRaw);
+            if (currentUsername === senderUsername) {
+                // sender envelope
+                targetEnvelopeB64 = keyForSenderB64;
+            } else {
+                // recipient envelope
+                targetEnvelopeB64 = keyForRecipientB64;
+            }
+
+            if (!targetEnvelopeB64 || targetEnvelopeB64 === "None" || targetEnvelopeB64 === "") {
+                throw new Error("Cannot decrypt");
+            }
+
+            // import keys
+            const myPrivKey = await crypto.importKey(JSON.parse(privKeyStr), 'encryption');
+            const ephemeralKey = await crypto.importKey(ephemeralKeyRaw, 'encryption', true);
+            
+            // derive wrapping key
+            const wrappingKey = await crypto.deriveSharedKey(myPrivKey, ephemeralKey);
+
+            // decrypt aes key
+            const rawSessionKey = await crypto.decryptData(wrappingKey, Utils.base64ToArrayBuffer(targetEnvelopeB64));
+            
+            // import aes key
+            const sessionAesKey = await window.crypto.subtle.importKey(
+                "raw", rawSessionKey, { name: "AES-GCM" }, false, ["decrypt"]
+            );
+
+            // decrypt content
+            const subjDec = await crypto.decryptData(sessionAesKey, subjRaw);
+            const contDec = await crypto.decryptData(sessionAesKey, contRaw);
             
             document.getElementById('subject_display').innerText = Utils.uint8ToStr(subjDec);
             document.getElementById('content_display').innerText = Utils.uint8ToStr(contDec);
             document.getElementById('message_container').style.display = 'block';
 
-            // decrypting filename
+            // decrypt attachments
             const attSection = document.getElementById('attachments_section');
-            if (attSection) attSection.style.display = 'block';
+            if (rows.length > 0 && attSection) attSection.style.display = 'block';
 
             for (let row of rows) {
                 const attId = row.dataset.id;
@@ -100,8 +135,8 @@ document.addEventListener("DOMContentLoaded", async () => {
                     const encName = Utils.base64ToArrayBuffer(span.dataset.encName);
                     const encMime = Utils.base64ToArrayBuffer(span.dataset.encMime);
 
-                    const nameDec = await crypto.decryptData(aesKey, encName);
-                    const mimeDec = await crypto.decryptData(aesKey, encMime);
+                    const nameDec = await crypto.decryptData(sessionAesKey, encName);
+                    const mimeDec = await crypto.decryptData(sessionAesKey, encMime);
                     
                     const fileName = Utils.uint8ToStr(nameDec);
                     const mimeType = Utils.uint8ToStr(mimeDec);
@@ -109,9 +144,10 @@ document.addEventListener("DOMContentLoaded", async () => {
                     span.innerText = fileName;
                     btn.disabled = false;
 
+                    // download handler
                     btn.onclick = async () => {
                         const fileBuf = attachmentCache.get(attId);
-                        const fileDec = await crypto.decryptData(aesKey, fileBuf);
+                        const fileDec = await crypto.decryptData(sessionAesKey, fileBuf);
                         
                         const blob = new Blob([fileDec], { type: mimeType });
                         const url = URL.createObjectURL(blob);

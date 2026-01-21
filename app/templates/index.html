@@ -1,10 +1,19 @@
 {% extends "base.html" %}
 
 {% block content %}
+<input type="hidden" id="current_username_hidden" value="{{ current_user.username }}">
+
 <div>
-    <h2>Inbox</h2>
-    <div style="margin-bottom: 15px;">
-        <a href="{{ url_for('main.send_message') }}" class="btn">Send Message</a>
+    <div>
+        <h2>{{ title }}</h2>
+        <div>
+            {% if box_type == 'inbox' %}
+                <a href="{{ url_for('main.sent') }}" class="btn">Go to Sent</a>
+            {% else %}
+                <a href="{{ url_for('main.index') }}" class="btn">Go to Inbox</a>
+            {% endif %}
+            <a href="{{ url_for('main.send_message') }}" class="btn">New Message</a>
+        </div>
     </div>
 
     <div id="key-status-missing" class="error-panel">
@@ -15,7 +24,7 @@
     <table class="inbox-table">
         <thead>
             <tr class="inbox-header">
-                <th>From</th>
+                <th>{{ 'To' if box_type == 'sent' else 'From' }}</th>
                 <th>Subject</th>
                 <th>Date</th>
                 <th>Action</th>
@@ -25,13 +34,22 @@
             {% for msg in messages %}
             <tr class="message-row" 
                 data-id="{{ msg.id }}"
+                data-sender="{{ msg.sender.username }}"
                 data-ephemeral="{{ msg.ephemeral_public_key }}" 
+                
+                data-recipient-key="{{ msg.recipient_encrypted_aes_key }}"
+                data-sender-key="{{ msg.sender_encrypted_aes_key }}"
+                
                 data-subject="{{ msg.encrypted_subject }}">
                 
                 <td>
-                    {{ msg.sender.username }}
-                    {% if not msg.is_read %}
-                        <span class="new-message-badge">New</span>
+                    {% if box_type == 'sent' %}
+                        <strong>{{ msg.recipient.username }}</strong>
+                    {% else %}
+                        {{ msg.sender.username }}
+                        {% if not msg.is_read %}
+                            <span class="new-message-badge">New</span>
+                        {% endif %}
                     {% endif %}
                 </td>
                 
@@ -47,7 +65,13 @@
             </tr>
             {% else %}
             <tr>
-                <td colspan="4" class="empty-inbox">Inbox is empty.</td>
+                <td colspan="4" class="empty-inbox">
+                    {% if box_type == 'sent' %}
+                        No sent messages.
+                    {% else %}
+                        Inbox is empty.
+                    {% endif %}
+                </td>
             </tr>
             {% endfor %}
         </tbody>

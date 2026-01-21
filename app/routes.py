@@ -16,7 +16,19 @@ def index():
         .where(Message.recipient_id == current_user.id)
         .order_by(Message.created_at.desc())
     ).all()
-    return render_template('index.html', messages=messages)
+    return render_template('index.html', messages=messages, title="Inbox", box_type="inbox")
+
+@bp.route('/sent')
+@login_required
+@limiter.limit('100 per minute')
+def sent():
+    messages = db.session.scalars(
+        db.select(Message)
+        .where(Message.sender_id == current_user.id)
+        .order_by(Message.created_at.desc())
+    ).all()
+    
+    return render_template('index.html', messages=messages, title="Sent Messages", box_type="sent")
 
 @bp.route('/send', methods=['GET', 'POST'])
 @login_required
@@ -36,6 +48,8 @@ def send_message():
             encrypted_content=form.content_encrypted.data,
             
             ephemeral_public_key=form.ephemeral_public_key.data,
+            sender_encrypted_aes_key=form.sender_encrypted_aes_key.data,
+            recipient_encrypted_aes_key=form.recipient_encrypted_aes_key.data,
             signature=form.signature.data
         )
         
@@ -66,6 +80,7 @@ def send_message():
                     db.session.add(attachment)
 
         db.session.commit()
+        flash('Message sended.',' success')
         
 
         return redirect(url_for('main.index'))
@@ -78,10 +93,10 @@ def send_message():
 def view_message(message_id):
     msg = db.session.get(Message, message_id)
     
-    if not msg or msg.recipient_id != current_user.id:
+    if not msg or (msg.recipient_id != current_user.id and msg.sender_id != current_user.id):
         return redirect(url_for('main.index'))
     
-    if not msg.is_read:
+    if not msg.is_read and current_user == msg.recipient:
         msg.is_read = True
         db.session.commit()
 
@@ -100,5 +115,5 @@ def delete_message(message_id):
     db.session.delete(msg)
     db.session.commit()
     
-    flash('Message deleted.')
+    flash('Message deleted.', 'success')
     return redirect(url_for('main.index'))

@@ -27,6 +27,17 @@
         <hr>
         
         <div class="container">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="flash-messages">
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category if category != 'message' else 'info' }}">
+                    {{ message }}
+                    </div>
+                {% endfor %}
+                </div>
+            {% endif %}
+            {% endwith %}
             {% block content %}{% endblock %}
         </div>
     </body>
@@ -38,7 +49,7 @@
         
         window.location.href = "{{ url_for('auth.logout') }}";
         }
-        document.getElementById('logout').addEventListener("click", , function(e) {
+        document.getElementById('logout').addEventListener("click", function(e) {
             e.preventDefault();
             logoutUser();
         });

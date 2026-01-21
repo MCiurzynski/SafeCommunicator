@@ -68,6 +68,8 @@ class Message(Base):
     encrypted_content: so.Mapped[str] = so.mapped_column(sa.Text, nullable=False)
 
     ephemeral_public_key: so.Mapped[str] = so.mapped_column(sa.Text, nullable=False)
+    sender_encrypted_aes_key: so.Mapped[str] = so.mapped_column(sa.Text, nullable=False)
+    recipient_encrypted_aes_key: so.Mapped[str] = so.mapped_column(sa.Text, nullable=False)
 
     signature: so.Mapped[str] = so.mapped_column(sa.Text, nullable=False)
 

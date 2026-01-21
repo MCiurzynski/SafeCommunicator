@@ -39,7 +39,8 @@ document.addEventListener("DOMContentLoaded", () => {
             const result = await response.json();
 
             if (!result.success) {
-                throw new Error(result.message || "Login failed");
+                window.location.reload();
+                return;
             }
 
             // private key unwrap
@@ -71,9 +72,6 @@ document.addEventListener("DOMContentLoaded", () => {
             window.location.href = result.redirect_url;
 
         } catch (err) {
-            console.error(err);
-            statusMsg.innerText = "Error: " + err.message;
-            statusMsg.style.color = "red";
             submitBtn.disabled = false;
         }
     });

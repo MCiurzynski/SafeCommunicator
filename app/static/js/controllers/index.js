@@ -8,6 +8,11 @@ document.addEventListener("DOMContentLoaded", async () => {
         return;
     }
 
+    const meRes = await fetch('/api/me');
+    if (!meRes.ok) throw new Error("Failed to fetch user info");
+    const me = await meRes.json();
+    const currentUser = me.username;
+
     const crypto = new E2ECrypto();
     const rows = document.querySelectorAll('.message-row');
 
@@ -19,12 +24,29 @@ document.addEventListener("DOMContentLoaded", async () => {
                 const subjectCell = row.querySelector('.subject-cell');
                 const ephemB64 = row.dataset.ephemeral;
                 const subjB64 = row.dataset.subject;
+                
+                const keyForRecipient = row.dataset.recipientKey;
+                const keyForSender = row.dataset.senderKey;
+                const msgSenderName = row.dataset.sender;
 
-                // Derive AES
+                let encryptedAesKeyB64;
+                
+                if (currentUser && currentUser === msgSenderName) {
+                    encryptedAesKeyB64 = keyForSender;
+                } else {
+                    encryptedAesKeyB64 = keyForRecipient;
+                }
+
                 const ephemKey = await crypto.importKey(Utils.base64ToArrayBuffer(ephemB64), 'encryption', true);
-                const aesKey = await crypto.deriveSharedKey(myPrivKey, ephemKey);
+                const wrappingAESKey = await crypto.deriveSharedKey(myPrivKey, ephemKey);
+                
+                const aesKeyRaw = await crypto.decryptData(wrappingAESKey, Utils.base64ToArrayBuffer(encryptedAesKeyB64));
+                
+                const aesKey = await window.crypto.subtle.importKey(
+                    "raw", aesKeyRaw, { name: "AES-GCM" }, false, ["decrypt"]
+                );
 
-                // Decrypt
+                // Decrypt Content
                 const subjDec = await crypto.decryptData(aesKey, Utils.base64ToArrayBuffer(subjB64));
                 
                 subjectCell.innerText = Utils.uint8ToStr(subjDec);

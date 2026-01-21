@@ -32,6 +32,7 @@ document.addEventListener("DOMContentLoaded", () => {
         document.getElementById("key-error").style.display = "block";
         return;
     }
+    const privKeyStr = sessionStorage.getItem("dec_enc_key");
 
     const crypto = new E2ECrypto();
     const form = document.getElementById('sendForm');
@@ -63,10 +64,17 @@ document.addEventListener("DOMContentLoaded", () => {
             const myPrivSignKey = await crypto.importKey(
                 JSON.parse(sessionStorage.getItem("dec_sign_key")), 'signing'
             );
+            const myPrivKey = await crypto.importKey(JSON.parse(privKeyStr), 'encryption');
 
             // generating ephemeral Key and aes key
             const ephemeralKP = await crypto.generateKeyPair('encryption');
-            const aesKey = await crypto.deriveSharedKey(ephemeralKP.privateKey, reciPubKey);
+            const wrappingRecipientKey = await crypto.deriveSharedKey(ephemeralKP.privateKey, reciPubKey);
+            const wrappingSenderKey = await crypto.deriveSharedKey(myPrivKey, ephemeralKP.publicKey);
+            const aesKey = await crypto.generateAESKey();
+            const rawAESKey = await crypto.exportKey(aesKey, 'raw');
+
+            const encryptedAESKeyRecipient = await crypto.encryptData(wrappingRecipientKey, rawAESKey);
+            const encryptedAESKeySender = await crypto.encryptData(wrappingSenderKey, rawAESKey);
 
             // encrypt subject and content
             const subjectBlob = await crypto.encryptData(aesKey, Utils.strToUint8(subject));
@@ -112,6 +120,8 @@ document.addEventListener("DOMContentLoaded", () => {
             document.getElementById('subject_encrypted').value = Utils.arrayBufferToBase64(subjectBlob);
             document.getElementById('content_encrypted').value = Utils.arrayBufferToBase64(contentBlob);
             document.getElementById('ephemeral_public_key').value = Utils.arrayBufferToBase64(ephemPubExp);
+            document.getElementById('sender_encrypted_aes_key').value = Utils.arrayBufferToBase64(encryptedAESKeySender);
+            document.getElementById('recipient_encrypted_aes_key').value = Utils.arrayBufferToBase64(encryptedAESKeyRecipient);
             document.getElementById('signature').value = Utils.arrayBufferToBase64(signature);
             document.getElementById('attachments_metadata_json').value = JSON.stringify(attachmentsMetadata);
 
