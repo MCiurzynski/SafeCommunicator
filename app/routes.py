@@ -4,8 +4,6 @@ from app.db import db, User, Message, Attachment
 from app.forms import SendMessageForm
 import json
 from app import limiter
-import os
-import uuid
 
 bp = Blueprint('main', __name__)
 
@@ -52,24 +50,20 @@ def send_message():
             if len(files) == len(metadata_list):
                 for i, file_storage in enumerate(files):
                     meta = metadata_list[i]
-                
-                storage_filename = f"{uuid.uuid4().hex}.enc"
-                
-                save_path = os.path.join(current_app.config['UPLOAD_FOLDER'], storage_filename)
-                
-                os.makedirs(os.path.dirname(save_path), exist_ok=True)
-                file_storage.save(save_path)
-                
-                file_size = os.path.getsize(save_path)
+                    
+                    blob_data = file_storage.read()
 
-                attachment = Attachment(
-                    message=msg,
-                    encrypted_filename=meta['encrypted_filename'],
-                    encrypted_mime_type=meta['encrypted_mime'],
-                    file_path=storage_filename,
-                    file_size=file_size
-                )
-                db.session.add(attachment)
+                    attachment = Attachment(
+                        message=msg,
+                        
+                        encrypted_filename=meta['encrypted_filename'],
+                        encrypted_mime_type=meta['encrypted_mime'],
+                        
+                        encrypted_data=blob_data,
+                        
+                        file_size=len(blob_data)
+                    )
+                    db.session.add(attachment)
 
         db.session.commit()
         
@@ -102,14 +96,6 @@ def delete_message(message_id):
     if not msg or msg.recipient_id != current_user.id:
         flash('Invalid.')
         return redirect(url_for('main.index'))
-    
-    for attachment in msg.attachments:
-        full_path = os.path.join(current_app.config['UPLOAD_FOLDER'], attachment.file_path)
-        try:
-            if os.path.exists(full_path):
-                os.remove(full_path)
-        except OSError as e:
-            current_app.logger.error(f"Error deleting file {full_path}: {e}")
 
     db.session.delete(msg)
     db.session.commit()

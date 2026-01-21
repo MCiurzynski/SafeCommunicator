@@ -2,8 +2,6 @@ services:
   web:
     build: .
     container_name: securechat_flask
-    volumes:
-      - secure_uploads:/app/uploads
     env_file:
       - .env
     depends_on:
@@ -53,7 +51,6 @@ services:
 volumes:
   static_volume:
   postgres_data:
-  secure_uploads:
 
 networks:
   secure_net:

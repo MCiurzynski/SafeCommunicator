@@ -2,7 +2,7 @@ from flask import Blueprint, jsonify, send_file, current_app
 from flask_login import login_required, current_user
 from app.db import db, User, Message, Attachment
 from app import limiter
-import os
+from io import BytesIO
 import hmac
 import hashlib
 import base64
@@ -31,17 +31,22 @@ def get_attachment(attachment_id):
     if not att:
         return jsonify({'error': 'Attachment not found'}), 404
 
-    if (att.message.recipient_id != current_user.id and 
-        att.message.sender_id != current_user.id):
+    if (
+        att.message.recipient_id != current_user.id and
+        att.message.sender_id != current_user.id
+    ):
         return jsonify({'error': 'Access denied'}), 403
 
-    full_path = os.path.join(current_app.config['UPLOAD_FOLDER'], att.file_path)
+    raw_data = att.encrypted_data
 
-    if not os.path.exists(full_path):
-        return jsonify({'error': 'File missing on server'}), 500
+    if not isinstance(raw_data, (bytes, bytearray)):
+        return jsonify({'error': 'Invalid attachment data'}), 500
+
+    buffer = BytesIO(raw_data)
+    buffer.seek(0)
 
     return send_file(
-        full_path,
+        buffer,
         mimetype="application/octet-stream",
         as_attachment=True,
         download_name='blob'
