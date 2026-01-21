@@ -14,7 +14,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     try {
         const myPrivKey = await crypto.importKey(JSON.parse(privKeyStr), 'encryption');
 
-        for (const row of rows) {
+        const decryptionPromises = Array.from(rows).map(async (row) => {
             try {
                 const subjectCell = row.querySelector('.subject-cell');
                 const ephemB64 = row.dataset.ephemeral;
@@ -35,7 +35,8 @@ document.addEventListener("DOMContentLoaded", async () => {
                 console.error("Row decryption failed", e);
                 row.querySelector('.subject-cell').innerText = "[Error]";
             }
-        }
+        });
+        await Promise.all(decryptionPromises);
     } catch (e) {
         console.error("Index error", e);
     }

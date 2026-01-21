@@ -8,6 +8,7 @@ import io
 from app import limiter
 import base64
 from passlib.hash import argon2
+from sqlalchemy.exc import IntegrityError
 
 
 bp = Blueprint('auth', __name__, url_prefix='/')
@@ -34,11 +35,8 @@ def login():
             argon2.verify('dummy', '$argon2id$v=19$m=65536,t=3,p=4$4RzDeE/J+T/HOIewFiLk3A$hrnvgHjxuvh3emqI6pDRyBaI59CyODMGmJlS8/WL6bY')
             is_valid = False
 
-        if not is_valid:
-            return jsonify({'success': False, 'message': error_msg}), 401
-
-        totp = pyotp.TOTP(user.totp_secret)
-        if not totp.verify(form.totp_code.data, valid_window=1):
+        totp = pyotp.TOTP(user.totp_secret) ## wywali się
+        if not totp.verify(form.totp_code.data, valid_window=1) or is_valid:
             return jsonify({'success': False, 'message': error_msg}), 401
         
         login_user(user)
@@ -96,7 +94,7 @@ def register():
         db.session.add(user)
         try:
             db.session.commit()
-        except:
+        except IntegrityError:
             flash('Username taken')
             return render_template('register.html', form=form)
 

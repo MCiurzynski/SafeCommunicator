@@ -10,7 +10,7 @@ class Config:
     db_name = os.environ['POSTGRES_DB']
     db_host = os.environ['DB_HOST']
 
-    MAX_CONTENT_LENGTH = int(os.environ['MAX_CONTENT_LENGTH'])
+    MAX_CONTENT_LENGTH = 105 * 1024 * 1024
 
     RATELIMIT_STORAGE_URI = os.environ['REDIS_URI']
 
@@ -19,4 +19,4 @@ class Config:
     SESSION_TYPE = 'redis'
     SESSION_PERMANENT = False
     SESSION_USE_SIGNER = True
-    SESSION_REDIS = SESSION_REDIS = redis.from_url(os.environ['REDIS_URI'])
+    SESSION_REDIS = redis.from_url(os.environ['REDIS_URI'])

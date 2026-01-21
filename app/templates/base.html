@@ -32,13 +32,16 @@
     </body>
     {% if current_user.is_authenticated %}
     <script nonce="{{ csp_nonce() }}">
-      function logoutUser() {
+        function logoutUser() {
         sessionStorage.removeItem("decrypted_private_key");
         sessionStorage.clear();
         
         window.location.href = "{{ url_for('auth.logout') }}";
-      }
-      document.getElementById('logout').addEventListener("click", logoutUser);
+        }
+        document.getElementById('logout').addEventListener("click", , function(e) {
+            e.preventDefault();
+            logoutUser();
+        });
     </script>
     {% endif %}
     </html>
