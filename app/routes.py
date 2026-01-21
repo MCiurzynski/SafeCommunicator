@@ -11,7 +11,7 @@ bp = Blueprint('main', __name__)
 
 @bp.route('/')
 @login_required
-@limiter.limit('10 per minute')
+@limiter.limit('100 per minute')
 def index():
     messages = db.session.scalars(
         db.select(Message)

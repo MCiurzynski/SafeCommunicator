@@ -8,12 +8,12 @@
         <p>Scan qr code in authenticator app. Without this you will not be able to log in:</p>
         
         <div>
-            <img src="data:image/png;base64,{{ qr_code }}" alt="Kod QR 2FA" style="width: 250px; height: 250px;">
+            <img src="data:image/png;base64,{{ qr_code }}" alt="Kod QR 2FA">
         </div>
 
         <p class="text-muted">
             If you can not scan code, enter code below:<br>
-            <strong style="letter-spacing: 2px; font-family: monospace;">{{ secret }}</strong>
+            <strong>{{ secret }}</strong>
         </p>
 
         <a href="{{ url_for('main.index') }}">Done</a>

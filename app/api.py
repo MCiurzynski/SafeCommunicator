@@ -13,6 +13,7 @@ bp = Blueprint('api', __name__, url_prefix='/api')
 @login_required
 @limiter.limit('10 per minute')
 def get_public_key(username):
+    username = username.lower()
     user = db.session.scalar(db.select(User).where(User.username == username))
     if user:
         return jsonify({
@@ -49,6 +50,7 @@ def get_attachment(attachment_id):
 @bp.route('/user/salt/<username>')
 @limiter.limit('10 per minute')
 def get_user_salt(username):
+    username = username.lower()
     user = db.session.scalar(db.select(User).where(User.username == username))
     
     if user:

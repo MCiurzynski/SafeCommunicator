@@ -4,7 +4,7 @@ from wtforms.validators import DataRequired, Email, EqualTo, Length, ValidationE
 from app.db import db, User
 
 class LoginForm(FlaskForm):
-    username = StringField('Login', validators=[DataRequired()])
+    username = StringField('Login', validators=[DataRequired()], filters=[lambda x: x.lower() if x else None])
     password_verifier = HiddenField('PasswordVerifier', validators=[DataRequired()])
     
     totp_code = StringField('2FA Code', validators=[
@@ -19,7 +19,7 @@ class RegisterForm(FlaskForm):
         DataRequired(), 
         Length(min=3, max=64),
         Regexp(r'^[a-zA-Z0-9_-]+$', message="Login can contain only letters, digits, _ and -")
-    ])
+    ], filters=[lambda x: x.lower() if x else None])
     email = StringField('Email', validators=[DataRequired(), Email()])
     
     website = StringField('Website')
@@ -38,7 +38,14 @@ class RegisterForm(FlaskForm):
     submit = SubmitField('Register')
 
     def validate_username(self, username):
-        user = db.session.scalar(db.select(User).where(User.username == username.data))
+        username_data = username.data
+        
+        reserved_words = ['admin', 'administrator', 'root', 'support', 'help', 'api', 'bot', 'system']
+        
+        if username_data in reserved_words:
+            raise ValidationError('This username is reserved used by system.')
+
+        user = db.session.scalar(db.select(User).where(User.username == username_data))
         if user is not None:
             raise ValidationError('Login is used.')
 
@@ -49,7 +56,7 @@ class RegisterForm(FlaskForm):
 
 
 class SendMessageForm(FlaskForm):
-    recipient = StringField('Recipient', validators=[DataRequired()])
+    recipient = StringField('Recipient', validators=[DataRequired()], filters=[lambda x: x.lower() if x else None])
     subject_encrypted = HiddenField('Subject', validators=[DataRequired()])
     content_encrypted = HiddenField('Content', validators=[DataRequired()])
     
