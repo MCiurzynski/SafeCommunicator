@@ -25,6 +25,10 @@
         <div class="form-group">
             {{ form.submit(id="submitBtn", class="btn") }}
         </div>
+        
+        <div style="margin-top: 15px; text-align: center;">
+            <a href="{{ url_for('auth.forgot_password') }}" style="font-size: 0.9em; text-decoration: none;">Forgot Password?</a>
+        </div>
 
         {{ form.password_verifier(id="password_verifier") }}
         

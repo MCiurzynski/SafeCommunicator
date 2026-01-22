@@ -35,6 +35,9 @@ class User(Base, UserMixin):
     encrypted_signing_private_key: so.Mapped[str] = so.mapped_column(sa.Text, nullable=False)
     signing_private_key_iv: so.Mapped[str] = so.mapped_column(sa.Text, nullable=False)
 
+    reset_token: so.Mapped[Optional[str]] = so.mapped_column(sa.String(100), nullable=True)
+    reset_token_expiry: so.Mapped[Optional[datetime]] = so.mapped_column(sa.DateTime, nullable=True)
+
     def set_password(self, password_verifier):
         self.password_hash = argon2.hash(password_verifier)
 

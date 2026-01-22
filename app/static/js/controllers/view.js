@@ -170,7 +170,14 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     } catch (err) {
         console.error(err);
-        document.getElementById('error_panel').style.display = 'block';
-        document.getElementById('error_msg').innerText = err.message;
+        const errorPanel = document.getElementById('error_panel');
+        errorPanel.style.display = 'block';
+        
+        if (err.message.includes("Cannot decrypt") || err.message.includes("operation failed")) {
+             document.getElementById('error_msg').innerText = 
+                "The message could not be decrypted. The password may have been reset or the private key may not match.";
+        } else {
+             document.getElementById('error_msg').innerText = err.message;
+        }
     }
 });

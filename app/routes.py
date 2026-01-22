@@ -80,7 +80,7 @@ def send_message():
                     db.session.add(attachment)
 
         db.session.commit()
-        flash('Message sended.',' success')
+        flash('Message sended.','success')
         
 
         return redirect(url_for('main.index'))
