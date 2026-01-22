@@ -1,6 +1,6 @@
 from flask import Blueprint, jsonify, send_file, current_app
 from flask_login import login_required, current_user
-from app.db import db, User, Message, Attachment
+from app.db import db, User, Attachment
 from app import limiter
 from io import BytesIO
 import hmac
@@ -77,6 +77,7 @@ def get_user_salt(username):
 
 @bp.route('/me')
 @login_required
+@limiter.limit('100 per minute')
 def get_me():
     return jsonify({
         'id': current_user.id,

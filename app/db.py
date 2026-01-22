@@ -5,7 +5,7 @@ import sqlalchemy.orm as so
 from typing import List, Optional
 import click
 from passlib.hash import argon2
-from flask_login import LoginManager, UserMixin
+from flask_login import UserMixin
 from datetime import datetime, timezone
 from app.utils import encrypt_totp_secret, decrypt_totp_secret
 
@@ -115,7 +115,7 @@ def init_app(app):
     app.cli.add_command(init_db_command)
     login.init_app(app)
     login.login_view = 'auth.login'
-    login.login_message = "Zaloguj się, aby uzyskać dostęp."
+    login.login_message = "Log in to get access."
 
 @login.user_loader
 def load_user(user_id):

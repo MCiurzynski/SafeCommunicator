@@ -40,6 +40,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
             if (!result.success) {
                 window.location.reload();
+                submitBtn.disabled = true;
                 return;
             }
 
@@ -73,6 +74,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         } catch (err) {
             submitBtn.disabled = false;
+            statusMsg.innerText = err;
         }
     });
 });

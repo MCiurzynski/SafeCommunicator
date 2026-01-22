@@ -83,7 +83,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         } catch (err) {
             console.error(err);
-            statusMsg.innerText = "Error: " + err.message;
+            statusMsg.innerText = err.message;
             statusMsg.style.color = "red";
             submitBtn.disabled = false;
         }

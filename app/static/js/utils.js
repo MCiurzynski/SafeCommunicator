@@ -70,8 +70,8 @@ export const Utils = {
 
     calculatePasswordStrength: (password) => {
         const entropy = Utils.calculatePasswordEntropy(password);
-        if (entropy < 28) return 0;
-        if (entropy < 36) return 1;
+        if (entropy < 32) return 0;
+        if (entropy < 40) return 1;
         if (entropy < 60) return 2;
         if (entropy < 128) return 3;
         return 4;

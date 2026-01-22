@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, redirect, url_for, flash, request, send_file, jsonify, current_app
+from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify 
 from app.forms import LoginForm, RegisterForm
 from app.db import db, User
 from flask_login import current_user, login_user, logout_user, login_required
@@ -43,7 +43,7 @@ def login():
 
         else:
             argon2.verify('dummy', '$argon2id$v=19$m=65536,t=3,p=4$4RzDeE/J+T/HOIewFiLk3A$hrnvgHjxuvh3emqI6pDRyBaI59CyODMGmJlS8/WL6bY')
-            fake_secret = pyotp.random_base32() 
+            fake_secret = pyotp.random_base32()
             totp = pyotp.TOTP(fake_secret)
             totp.verify(form.totp_code.data, valid_window=1)
             
@@ -69,7 +69,7 @@ def login():
 
     if request.method == 'POST' and not form.validate():
         flash(error_msg, 'error')
-        return jsonify({'success': False, 'message': error_msg}), 400
+        return jsonify({'success': False, 'message': 'Invalid request'}), 400
 
     return render_template('login.html', form=form)
 
@@ -84,7 +84,7 @@ def register():
     
     if form.validate_on_submit():
         if form.website.data:
-            print(f"BOT DETECTED: {request.remote_addr} filled honeypot.")
+            print(f"BOT DETECTED: {request.remote_addr}.")
             return redirect(url_for('main.index'))
 
         new_totp_secret = pyotp.random_base32()
